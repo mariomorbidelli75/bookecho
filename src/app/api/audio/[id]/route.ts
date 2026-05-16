@@ -13,7 +13,7 @@ export async function GET(_: NextRequest, { params }: { params: Promise<{ id: st
   if (process.env.ELEVENLABS_API_KEY) {
     const audioBuffer = await generateAudio(script)
     if (audioBuffer) {
-      return new NextResponse(audioBuffer, {
+      return new NextResponse(new Uint8Array(audioBuffer), {
         headers: {
           'Content-Type': 'audio/mpeg',
           'Content-Length': audioBuffer.length.toString(),

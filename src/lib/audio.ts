@@ -1,4 +1,4 @@
-export async function generateAudio(script: string): Promise<Buffer | null> {
+export async function generateAudio(script: string): Promise<Uint8Array | null> {
   const apiKey = process.env.ELEVENLABS_API_KEY
   const voiceId = process.env.ELEVENLABS_VOICE_ID ?? '21m00Tcm4TlvDq8ikWAM'
 
@@ -19,5 +19,5 @@ export async function generateAudio(script: string): Promise<Buffer | null> {
 
   if (!res.ok) return null
   const buffer = await res.arrayBuffer()
-  return Buffer.from(buffer)
+  return new Uint8Array(buffer)
 }
