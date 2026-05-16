@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { use } from 'react'
 import { TopBar } from '@/components/TopBar'
 import { AudioPlayer } from '@/components/AudioPlayer'
@@ -11,6 +11,7 @@ export default function AudioPage({ params }: { params: Promise<{ id: string }> 
   const [audioData, setAudioData] = useState<{ script?: string; url?: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
+  const autoSpeakRef = useRef(false)
 
   useEffect(() => {
     fetch(`/api/books/${id}`)
@@ -19,9 +20,24 @@ export default function AudioPage({ params }: { params: Promise<{ id: string }> 
       .catch(() => setLoading(false))
   }, [id])
 
+  // If generation returned only a script (ElevenLabs unavailable), trigger browser TTS
+  useEffect(() => {
+    if (!autoSpeakRef.current) return
+    if (audioData?.url) return // real audio handled by AudioPlayer auto-play
+    if (!audioData?.script) return
+    autoSpeakRef.current = false
+    if (typeof window === 'undefined' || !window.speechSynthesis) return
+    window.speechSynthesis.cancel()
+    const u = new SpeechSynthesisUtterance(audioData.script)
+    u.lang = 'it-IT'
+    u.rate = 0.88
+    window.speechSynthesis.speak(u)
+  }, [audioData])
+
   const generate = async () => {
     if (generating || audioData?.url) return
     setGenerating(true)
+    autoSpeakRef.current = true
     try {
       const r = await fetch(`/api/audio/${id}`)
       if (r.headers.get('content-type')?.includes('audio')) {
@@ -32,7 +48,12 @@ export default function AudioPage({ params }: { params: Promise<{ id: string }> 
         setAudioData(json)
       }
     } catch {
-      // ignore
+      // On network error, generate a local script for browser TTS
+      if (book) {
+        setAudioData({
+          script: `Benvenuto in BookEcho. Stai per ascoltare il trailer di "${book.title}" di ${book.author}. ${book.summary ?? ''} Un libro che non dimenticherai.`
+        })
+      }
     } finally {
       setGenerating(false)
     }

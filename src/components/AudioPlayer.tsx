@@ -20,45 +20,89 @@ export function AudioPlayer({ audioUrl, script, bookTitle, onGenerate, generatin
 
   const BARS = 24
 
+  // Re-attach listeners whenever audioUrl changes (audio element mounts/changes)
   useEffect(() => {
     const audio = audioRef.current
     if (!audio) return
-    const onTime = () => { setCurrentTime(audio.currentTime); setProgress(audio.currentTime / audio.duration) }
+    const onTime = () => {
+      setCurrentTime(audio.currentTime)
+      setProgress(audio.currentTime / audio.duration)
+    }
     const onLoad = () => setDuration(audio.duration)
     const onEnd = () => { setPlaying(false); setProgress(0) }
     audio.addEventListener('timeupdate', onTime)
     audio.addEventListener('loadedmetadata', onLoad)
     audio.addEventListener('ended', onEnd)
-    return () => { audio.removeEventListener('timeupdate', onTime); audio.removeEventListener('loadedmetadata', onLoad); audio.removeEventListener('ended', onEnd) }
-  }, [])
+    return () => {
+      audio.removeEventListener('timeupdate', onTime)
+      audio.removeEventListener('loadedmetadata', onLoad)
+      audio.removeEventListener('ended', onEnd)
+    }
+  }, [audioUrl])
+
+  // Auto-play as soon as audioUrl becomes available (user already clicked)
+  useEffect(() => {
+    if (!audioUrl || !audioRef.current) return
+    audioRef.current.play().catch(() => {})
+    setPlaying(true)
+  }, [audioUrl])
+
+  // Browser TTS fallback (used when ElevenLabs is unavailable or times out)
+  const speakWithBrowser = () => {
+    if (!script || typeof window === 'undefined' || !window.speechSynthesis) return
+    window.speechSynthesis.cancel()
+    const u = new SpeechSynthesisUtterance(script)
+    u.lang = 'it-IT'
+    u.rate = 0.88
+    u.pitch = 1
+    u.onstart = () => setPlaying(true)
+    u.onend = () => { setPlaying(false); setProgress(0) }
+    u.onboundary = (e) => {
+      if (u.text.length > 0) setProgress(e.charIndex / u.text.length)
+    }
+    window.speechSynthesis.speak(u)
+  }
 
   const toggle = () => {
-    if (!audioUrl && onGenerate) { onGenerate(); return }
-    const audio = audioRef.current
-    if (!audio) return
-    playing ? audio.pause() : audio.play()
-    setPlaying(!playing)
+    // Real audio available
+    if (audioUrl && audioRef.current) {
+      if (playing) {
+        audioRef.current.pause()
+        setPlaying(false)
+      } else {
+        audioRef.current.play().catch(() => {})
+        setPlaying(true)
+      }
+      return
+    }
+    // Generating in progress — ignore extra clicks
+    if (generating) return
+    // Trigger ElevenLabs generation (first click)
+    if (onGenerate) { onGenerate(); return }
+    // Fallback: browser TTS
+    if (script) {
+      if (playing) { window.speechSynthesis?.cancel(); setPlaying(false) }
+      else speakWithBrowser()
+    }
   }
 
   const skip = (secs: number) => {
     const audio = audioRef.current
-    if (!audio) return
-    audio.currentTime = Math.max(0, Math.min(audio.duration, audio.currentTime + secs))
+    if (audio) audio.currentTime = Math.max(0, Math.min(audio.duration, audio.currentTime + secs))
   }
 
   const seek = (e: React.MouseEvent<HTMLDivElement>) => {
     const audio = audioRef.current
     if (!audio) return
     const rect = e.currentTarget.getBoundingClientRect()
-    const pct = (e.clientX - rect.left) / rect.width
-    audio.currentTime = pct * audio.duration
+    audio.currentTime = ((e.clientX - rect.left) / rect.width) * audio.duration
   }
 
   const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`
 
   return (
     <div className="rounded-3xl overflow-hidden" style={{ background: 'var(--forest-darker)', color: 'var(--cream)' }}>
-      {audioUrl && <audio ref={audioRef} src={audioUrl} preload="metadata" />}
+      {audioUrl && <audio ref={audioRef} src={audioUrl} preload="auto" />}
 
       <div className="p-6">
         <div className="flex items-center gap-3 mb-6">
@@ -135,11 +179,19 @@ export function AudioPlayer({ audioUrl, script, bookTitle, onGenerate, generatin
           </button>
         </div>
 
-        {!audioUrl && script && (
+        {/* Script shown when ElevenLabs unavailable */}
+        {!audioUrl && script && !generating && (
           <div className="mt-6 p-4 rounded-2xl text-sm leading-relaxed" style={{ background: 'rgba(245,241,232,0.05)', color: 'rgba(245,241,232,0.7)' }}>
             <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: 'var(--accent-amber)' }}>Script generato</p>
             <p>{script}</p>
           </div>
+        )}
+
+        {/* Generating hint */}
+        {generating && (
+          <p className="text-center text-xs mt-4" style={{ color: 'rgba(245,241,232,0.4)' }}>
+            Generazione audio in corso…
+          </p>
         )}
       </div>
     </div>
