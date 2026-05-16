@@ -9,8 +9,11 @@ export function formatPrice(value: number, currency = 'EUR'): string {
   return new Intl.NumberFormat('it-IT', { style: 'currency', currency }).format(value)
 }
 
-export function formatDate(date: string | Date): string {
-  return new Intl.DateTimeFormat('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(date))
+export function formatDate(date: string | Date | null | undefined): string {
+  if (!date) return '—'
+  const d = new Date(date)
+  if (isNaN(d.getTime())) return '—'
+  return new Intl.DateTimeFormat('it-IT', { day: 'numeric', month: 'long', year: 'numeric' }).format(d)
 }
 
 export function truncate(str: string, length: number): string {
