@@ -10,23 +10,33 @@ export default function AudioPage({ params }: { params: Promise<{ id: string }> 
   const [book, setBook] = useState<Book | null>(null)
   const [audioData, setAudioData] = useState<{ script?: string; url?: string } | null>(null)
   const [loading, setLoading] = useState(true)
+  const [generating, setGenerating] = useState(false)
 
   useEffect(() => {
-    Promise.all([
-      fetch(`/api/books/${id}`).then(r => r.json()),
-      fetch(`/api/audio/${id}`).then(async r => {
-        if (r.headers.get('content-type')?.includes('audio')) {
-          const blob = await r.blob()
-          return { url: URL.createObjectURL(blob) }
-        }
-        return r.json()
-      })
-    ]).then(([bookData, audio]) => {
-      setBook(bookData)
-      setAudioData(audio)
-      setLoading(false)
-    }).catch(() => setLoading(false))
+    fetch(`/api/books/${id}`)
+      .then(r => r.json())
+      .then(data => { setBook(data); setLoading(false) })
+      .catch(() => setLoading(false))
   }, [id])
+
+  const generate = async () => {
+    if (generating || audioData?.url) return
+    setGenerating(true)
+    try {
+      const r = await fetch(`/api/audio/${id}`)
+      if (r.headers.get('content-type')?.includes('audio')) {
+        const blob = await r.blob()
+        setAudioData({ url: URL.createObjectURL(blob) })
+      } else {
+        const json = await r.json()
+        setAudioData(json)
+      }
+    } catch {
+      // ignore
+    } finally {
+      setGenerating(false)
+    }
+  }
 
   return (
     <div>
@@ -39,6 +49,8 @@ export default function AudioPage({ params }: { params: Promise<{ id: string }> 
             audioUrl={audioData?.url}
             script={audioData?.script}
             bookTitle={book?.title}
+            onGenerate={generate}
+            generating={generating}
           />
         )}
 

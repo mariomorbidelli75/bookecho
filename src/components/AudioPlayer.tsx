@@ -7,9 +7,11 @@ interface AudioPlayerProps {
   audioUrl?: string
   script?: string
   bookTitle?: string
+  onGenerate?: () => void
+  generating?: boolean
 }
 
-export function AudioPlayer({ audioUrl, script, bookTitle }: AudioPlayerProps) {
+export function AudioPlayer({ audioUrl, script, bookTitle, onGenerate, generating }: AudioPlayerProps) {
   const audioRef = useRef<HTMLAudioElement>(null)
   const [playing, setPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -31,6 +33,7 @@ export function AudioPlayer({ audioUrl, script, bookTitle }: AudioPlayerProps) {
   }, [])
 
   const toggle = () => {
+    if (!audioUrl && onGenerate) { onGenerate(); return }
     const audio = audioRef.current
     if (!audio) return
     playing ? audio.pause() : audio.play()
@@ -115,11 +118,17 @@ export function AudioPlayer({ audioUrl, script, bookTitle }: AudioPlayerProps) {
           </button>
           <button
             onClick={toggle}
-            disabled={!audioUrl}
-            className={cn('w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-lg', !audioUrl && 'opacity-50 cursor-not-allowed')}
+            disabled={generating}
+            className={cn('w-14 h-14 rounded-full flex items-center justify-center transition-all shadow-lg', generating && 'opacity-70')}
             style={{ background: 'var(--accent-amber)' }}
           >
-            {playing ? <Pause size={24} style={{ color: 'var(--ink)' }} /> : <Play size={24} style={{ color: 'var(--ink)', marginLeft: 2 }} />}
+            {generating ? (
+              <span className="w-5 h-5 border-2 border-[var(--ink)] border-t-transparent rounded-full animate-spin" />
+            ) : playing ? (
+              <Pause size={24} style={{ color: 'var(--ink)' }} />
+            ) : (
+              <Play size={24} style={{ color: 'var(--ink)', marginLeft: 2 }} />
+            )}
           </button>
           <button onClick={() => skip(10)} className="p-2 rounded-full hover:bg-white/10 transition-colors">
             <RotateCw size={20} style={{ color: 'rgba(245,241,232,0.7)' }} />

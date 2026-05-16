@@ -3,6 +3,8 @@ import { getBook } from '@/lib/db'
 import { generateAudioScript } from '@/lib/ai'
 import { generateAudio } from '@/lib/audio'
 
+export const maxDuration = 60
+
 export async function GET(_: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
   const book = getBook(id)
