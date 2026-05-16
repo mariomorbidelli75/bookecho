@@ -4,7 +4,8 @@ import type { Book } from '@/types'
 import { DEMO_BOOKS } from './demo-data'
 
 const DB_PATH = path.join(process.cwd(), 'data', 'books.json')
-const DEMO = process.env.NEXT_PUBLIC_DEMO_MODE === 'true'
+// Vercel serverless has no writable project filesystem — always use demo data there
+const DEMO = process.env.NEXT_PUBLIC_DEMO_MODE === 'true' || process.env.VERCEL === '1'
 
 function ensureDb() {
   const dir = path.dirname(DB_PATH)
