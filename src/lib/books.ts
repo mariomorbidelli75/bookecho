@@ -14,6 +14,9 @@ interface OpenLibraryBook {
 export async function lookupByIsbn(isbn: string): Promise<Record<string, unknown> | null> {
   const clean = isbn.replace(/[-\s]/g, '')
 
+  let olData: Record<string, unknown> | null = null
+  let gbData: Record<string, unknown> | null = null
+
   // Open Library (free, no key)
   try {
     const res = await fetch(
@@ -22,19 +25,34 @@ export async function lookupByIsbn(isbn: string): Promise<Record<string, unknown
     if (res.ok) {
       const data = await res.json() as Record<string, OpenLibraryBook>
       const book = data[`ISBN:${clean}`]
-      if (book?.title) return mapOpenLibraryBook(book, clean)
+      if (book?.title) olData = mapOpenLibraryBook(book, clean)
     }
   } catch {}
 
-  // Fallback: Google Books
+  // Google Books (usually has better descriptions and genres)
   const gb = await getBookByIsbn(clean)
-  if (gb) return mapGoogleBook(gb)
+  if (gb) gbData = mapGoogleBook(gb)
 
-  return null
+  if (!olData && !gbData) return null
+  if (!olData) return gbData
+  if (!gbData) return olData
+
+  // Merge both sources: take the best value for each field
+  return {
+    ...olData,
+    cover: olData.cover || gbData.cover || `https://covers.openlibrary.org/b/isbn/${clean}-L.jpg`,
+    summary: olData.summary || gbData.summary || null,
+    genre: olData.genre || gbData.genre || null,
+    pages: olData.pages || gbData.pages || null,
+    language: olData.language || gbData.language || null,
+    publisher: olData.publisher || gbData.publisher || null,
+    year: olData.year || gbData.year || null,
+  }
 }
 
 function mapOpenLibraryBook(ol: OpenLibraryBook, isbn: string): Record<string, unknown> {
-  const cover = ol.cover?.large ?? ol.cover?.medium ?? ol.cover?.small ?? null
+  const cover = ol.cover?.large ?? ol.cover?.medium ?? ol.cover?.small
+    ?? `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg`
   const author = ol.authors?.map(a => a.name).join(', ') ?? 'Autore sconosciuto'
   const publisher = ol.publishers?.[0]?.name ?? null
   const yearMatch = ol.publish_date?.match(/\d{4}/)
