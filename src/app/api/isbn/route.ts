@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { lookupByIsbn } from '@/lib/books'
-import { generateBookSummary } from '@/lib/ai'
+import { lookupByIsbn, fetchWikipediaSummary } from '@/lib/books'
 
 export async function GET(req: NextRequest) {
   const isbn = req.nextUrl.searchParams.get('isbn')
@@ -14,10 +13,13 @@ export async function GET(req: NextRequest) {
   const book = await lookupByIsbn(clean)
   if (!book) return NextResponse.json({ error: 'Libro non trovato' }, { status: 404 })
 
-  // Try AI summary if none found
+  // If no summary from OL or Google Books, try Wikipedia (completely free)
   if (!book.summary && book.title && book.author) {
-    const aiSummary = await generateBookSummary(book.title as string, book.author as string)
-    if (aiSummary) book.summary = aiSummary
+    const wikiSummary = await fetchWikipediaSummary(
+      book.title as string,
+      book.author as string
+    )
+    if (wikiSummary) book.summary = wikiSummary
   }
 
   return NextResponse.json({ ...book, found: true, confidence: 0.95 })

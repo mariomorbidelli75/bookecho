@@ -30,37 +30,60 @@ export interface GoogleBook {
 export async function lookupByIsbn(isbn: string): Promise<Record<string, unknown> | null> {
   const clean = isbn.replace(/[-\s]/g, '')
 
-  // Fetch both sources in parallel for speed
-  const [olResult, gbResult] = await Promise.allSettled([
+  // Fetch all three sources in parallel
+  const [olResult, gbResult, olCoverResult] = await Promise.allSettled([
     fetchOpenLibrary(clean),
     getBookByIsbn(clean),
+    checkOLCover(clean),
   ])
 
   const olData = olResult.status === 'fulfilled' ? olResult.value : null
   const gb = gbResult.status === 'fulfilled' ? gbResult.value : null
   const gbData = gb ? mapGoogleBook(gb) : null
+  const olCoverUrl = olCoverResult.status === 'fulfilled' ? olCoverResult.value : null
 
   if (!olData && !gbData) return null
-  if (!olData) return gbData
-  if (!gbData) return olData
 
-  // Merge: prefer OL for metadata, fill every gap with Google Books
-  return {
-    ...olData,
-    cover: olData.cover || gbData.cover || null,
-    summary: olData.summary || gbData.summary || null,
-    genre: olData.genre || gbData.genre || null,
-    pages: olData.pages || gbData.pages || null,
-    language: olData.language || gbData.language || null,
-    publisher: olData.publisher || gbData.publisher || null,
-    year: olData.year || gbData.year || null,
+  const merged: Record<string, unknown> = {
+    ...(olData ?? {}),
+    ...(gbData ? {
+      cover: (olData?.cover ?? null) || gbData.cover || olCoverUrl,
+      summary: (olData?.summary ?? null) || gbData.summary || null,
+      genre: (olData?.genre ?? null) || gbData.genre || null,
+      pages: (olData?.pages ?? null) || gbData.pages || null,
+      language: (olData?.language ?? null) || gbData.language || null,
+      publisher: (olData?.publisher ?? null) || gbData.publisher || null,
+      year: (olData?.year ?? null) || gbData.year || null,
+    } : {
+      cover: (olData?.cover ?? null) || olCoverUrl,
+    }),
+    isbn: clean,
+    title: olData?.title ?? gbData?.title,
+    author: olData?.author ?? gbData?.author,
   }
+
+  // If still no cover, use OL covers API as last resort
+  if (!merged.cover && olCoverUrl) merged.cover = olCoverUrl
+
+  return merged
+}
+
+// Verify a real JPEG cover exists on Open Library (returns null if only placeholder)
+async function checkOLCover(isbn: string): Promise<string | null> {
+  const url = `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg`
+  try {
+    const res = await fetch(url, { method: 'HEAD' })
+    const ct = res.headers.get('content-type') ?? ''
+    if (ct.includes('jpeg') || ct.includes('jpg')) return url
+  } catch {}
+  return null
 }
 
 async function fetchOpenLibrary(isbn: string): Promise<Record<string, unknown> | null> {
   try {
     const res = await fetch(
-      `https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`
+      `https://openlibrary.org/api/books?bibkeys=ISBN:${isbn}&format=json&jscmd=data`,
+      { next: { revalidate: 86400 } } as RequestInit
     )
     if (!res.ok) return null
     const data = await res.json() as Record<string, OpenLibraryBook>
@@ -72,9 +95,7 @@ async function fetchOpenLibrary(isbn: string): Promise<Record<string, unknown> |
 }
 
 function mapOpenLibraryBook(ol: OpenLibraryBook, isbn: string): Record<string, unknown> {
-  // Only use cover URLs that are actually present in the API response
   const cover = ol.cover?.large ?? ol.cover?.medium ?? ol.cover?.small ?? null
-
   const author = ol.authors?.map(a => a.name).join(', ') ?? 'Autore sconosciuto'
   const publisher = ol.publishers?.[0]?.name ?? null
   const yearMatch = ol.publish_date?.match(/\d{4}/)
@@ -115,7 +136,6 @@ export function mapGoogleBook(gb: GoogleBook): Record<string, unknown> {
   const isbn = info.industryIdentifiers?.find(i => i.type === 'ISBN_13')?.identifier
     ?? info.industryIdentifiers?.find(i => i.type === 'ISBN_10')?.identifier
 
-  // Google Books thumbnail — force https and use larger zoom
   const rawThumb = info.imageLinks?.thumbnail ?? info.imageLinks?.smallThumbnail ?? null
   const cover = rawThumb
     ? rawThumb.replace('http:', 'https:').replace('zoom=1', 'zoom=3')
@@ -133,4 +153,36 @@ export function mapGoogleBook(gb: GoogleBook): Record<string, unknown> {
     genre: info.categories?.[0] ?? null,
     language: info.language ?? null,
   }
+}
+
+// Free Wikipedia summary — tries Italian first, then English
+export async function fetchWikipediaSummary(title: string, author: string): Promise<string | null> {
+  const lastName = author.split(' ').filter(Boolean).pop() ?? ''
+  const queries = [`${title} ${lastName}`.trim(), title]
+
+  for (const lang of ['it', 'en']) {
+    for (const query of queries) {
+      try {
+        const searchParams = new URLSearchParams({
+          action: 'query', list: 'search',
+          srsearch: query, format: 'json', srlimit: '1',
+        })
+        const searchRes = await fetch(`https://${lang}.wikipedia.org/w/api.php?${searchParams}`)
+        if (!searchRes.ok) continue
+        const searchData = await searchRes.json()
+        const firstResult = searchData.query?.search?.[0]
+        if (!firstResult) continue
+
+        const pageTitle = encodeURIComponent(firstResult.title.replace(/\s+/g, '_'))
+        const summaryRes = await fetch(`https://${lang}.wikipedia.org/api/rest_v1/page/summary/${pageTitle}`)
+        if (!summaryRes.ok) continue
+        const summaryData = await summaryRes.json()
+
+        if (summaryData.extract && summaryData.extract.length > 80) {
+          return summaryData.extract.slice(0, 700)
+        }
+      } catch {}
+    }
+  }
+  return null
 }
