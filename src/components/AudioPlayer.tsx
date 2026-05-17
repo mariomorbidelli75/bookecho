@@ -64,26 +64,22 @@ export function AudioPlayer({ audioUrl, script, bookTitle, onGenerate, generatin
   }
 
   const toggle = () => {
-    // Real audio available
+    // Real audio file available
     if (audioUrl && audioRef.current) {
-      if (playing) {
-        audioRef.current.pause()
-        setPlaying(false)
-      } else {
-        audioRef.current.play().catch(() => {})
-        setPlaying(true)
-      }
+      if (playing) { audioRef.current.pause(); setPlaying(false) }
+      else { audioRef.current.play().catch(() => {}); setPlaying(true) }
       return
     }
-    // Generating in progress — ignore extra clicks
+    // Generating — block extra clicks
     if (generating) return
-    // Trigger ElevenLabs generation (first click)
-    if (onGenerate) { onGenerate(); return }
-    // Fallback: browser TTS
+    // Script already ready — play/pause browser TTS (do NOT re-generate)
     if (script) {
       if (playing) { window.speechSynthesis?.cancel(); setPlaying(false) }
       else speakWithBrowser()
+      return
     }
+    // Nothing yet — trigger generation
+    if (onGenerate) onGenerate()
   }
 
   const skip = (secs: number) => {
