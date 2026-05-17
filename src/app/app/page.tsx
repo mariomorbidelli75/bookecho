@@ -1,10 +1,11 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Search, SlidersHorizontal, BookOpen, Plus } from 'lucide-react'
+import { Search, BookOpen, Plus } from 'lucide-react'
 import Link from 'next/link'
 import { BookCard } from '@/components/BookCard'
 import type { Book, BookStatus } from '@/types'
 import { cn } from '@/lib/utils'
+import { getBooks } from '@/lib/storage'
 
 const FILTERS: { value: BookStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'Tutti' },
@@ -20,10 +21,8 @@ export default function LibraryPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    fetch('/api/books')
-      .then(r => r.json())
-      .then(data => { setBooks(data); setLoading(false) })
-      .catch(() => setLoading(false))
+    setBooks(getBooks())
+    setLoading(false)
   }, [])
 
   const filtered = books.filter(b => {

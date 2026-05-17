@@ -6,6 +6,7 @@ import Image from 'next/image'
 import { TopBar } from '@/components/TopBar'
 import { fileToBase64 } from '@/lib/utils'
 import type { Book } from '@/types'
+import { createBook } from '@/lib/storage'
 
 type ScanState = 'idle' | 'scanning' | 'found' | 'error'
 type ScanMode = 'cover' | 'barcode'
@@ -121,7 +122,7 @@ export default function ScanPage() {
       const data = await res.json()
       if (data.error || !data.title) {
         setState('error')
-        setError('Libro non riconosciuto. Riprova con un\'immagine più nitida.')
+        setError(data.error ?? 'Libro non riconosciuto. Usa il barcode ISBN oppure riprova con un\'immagine più nitida.')
       } else {
         setResult(data)
         setState('found')
@@ -132,20 +133,11 @@ export default function ScanPage() {
     }
   }, [])
 
-  const saveBook = async () => {
+  const saveBook = () => {
     if (!result) return
     setSaving(true)
-    try {
-      const res = await fetch('/api/books', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...result, status: 'read' }),
-      })
-      const saved = await res.json()
-      router.push(`/app/book/${saved.id}`)
-    } catch {
-      setSaving(false)
-    }
+    const book = createBook({ ...result, status: 'read' })
+    router.push(`/app/book/${book.id}`)
   }
 
   const reset = useCallback(() => {

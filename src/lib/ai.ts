@@ -9,9 +9,9 @@ const client = process.env.ANTHROPIC_API_KEY
 const DEMO = process.env.NEXT_PUBLIC_DEMO_MODE === 'true' || !client
 
 export async function identifyBookFromImage(base64Image: string): Promise<Partial<Book>> {
-  if (DEMO) {
-    await new Promise(r => setTimeout(r, 2000))
-    return DEMO_BOOKS[Math.floor(Math.random() * DEMO_BOOKS.length)]
+  if (!client) {
+    // No API key — return empty so the scan page shows a proper error
+    return {}
   }
 
   const response = await client!.messages.create({

@@ -7,6 +7,7 @@ import { TopBar } from '@/components/TopBar'
 import type { Book, BookStatus } from '@/types'
 import { EMOTIONS } from '@/types'
 import { cn } from '@/lib/utils'
+import { getBook, updateBook, deleteBook } from '@/lib/storage'
 
 export default function EditBookPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -16,22 +17,20 @@ export default function EditBookPage({ params }: { params: Promise<{ id: string 
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
-    fetch(`/api/books/${id}`).then(r => r.json()).then(data => { setBook(data); setLoading(false) })
+    const data = getBook(id)
+    if (data) setBook(data)
+    setLoading(false)
   }, [id])
 
-  const save = async () => {
+  const save = () => {
     setSaving(true)
-    await fetch(`/api/books/${id}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(book),
-    })
+    updateBook(id, book)
     router.push(`/app/book/${id}`)
   }
 
-  const remove = async () => {
+  const remove = () => {
     if (!confirm('Eliminare questo libro dalla libreria?')) return
-    await fetch(`/api/books/${id}`, { method: 'DELETE' })
+    deleteBook(id)
     router.push('/app')
   }
 

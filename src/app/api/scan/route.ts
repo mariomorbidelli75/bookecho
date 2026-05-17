@@ -11,16 +11,19 @@ export async function POST(req: NextRequest) {
 
     const aiResult = await identifyBookFromImage(image)
 
-    if (aiResult.title && process.env.GOOGLE_BOOKS_API_KEY) {
-      const query = `${aiResult.title} ${aiResult.author ?? ''}`.trim()
-      const gbResults = await searchGoogleBooks(query)
-      if (gbResults.length > 0) {
-        const gbData = mapGoogleBook(gbResults[0])
-        return NextResponse.json({ ...gbData, ...aiResult, found: true, confidence: 0.9 })
-      }
+    if (!aiResult.title) {
+      return NextResponse.json({ error: 'Libro non riconosciuto. Usa il barcode ISBN.' }, { status: 422 })
     }
 
-    return NextResponse.json({ ...aiResult, found: !!aiResult.title, confidence: aiResult.title ? 0.7 : 0 })
+    // Always try to enrich with Google Books for cover + description
+    const query = `${aiResult.title} ${aiResult.author ?? ''}`.trim()
+    const gbResults = await searchGoogleBooks(query)
+    if (gbResults.length > 0) {
+      const gbData = mapGoogleBook(gbResults[0])
+      return NextResponse.json({ ...gbData, ...aiResult, found: true, confidence: 0.9 })
+    }
+
+    return NextResponse.json({ ...aiResult, found: true, confidence: 0.7 })
   } catch (e) {
     console.error('Scan error:', e)
     return NextResponse.json({ error: 'Scan failed' }, { status: 500 })

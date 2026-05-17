@@ -8,6 +8,7 @@ import { TopBar } from '@/components/TopBar'
 import type { Book } from '@/types'
 import { cn, formatDate } from '@/lib/utils'
 import { EMOTIONS } from '@/types'
+import { getBook, updateBook } from '@/lib/storage'
 
 const ACTION_CARDS = [
   { href: 'audio', icon: Headphones, label: 'Trailer Audio', desc: 'Ascolta il riassunto', color: 'var(--forest-darker)', textColor: 'var(--cream)' },
@@ -23,26 +24,24 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
   const [emotions, setEmotions] = useState<string[]>([])
 
   useEffect(() => {
-    fetch(`/api/books/${id}`)
-      .then(r => r.json())
-      .then(data => {
-        setBook(data)
-        setRating(data.rating ?? 0)
-        setEmotions(data.emotions ?? [])
-        setLoading(false)
-      })
-      .catch(() => setLoading(false))
+    const data = getBook(id)
+    if (data) {
+      setBook(data)
+      setRating(data.rating ?? 0)
+      setEmotions(data.emotions ?? [])
+    }
+    setLoading(false)
   }, [id])
 
   const setRatingAndSave = (r: number) => {
     setRating(r)
-    fetch(`/api/books/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rating: r }) })
+    updateBook(id, { rating: r })
   }
 
   const toggleEmotion = (e: string) => {
     const next = emotions.includes(e) ? emotions.filter(x => x !== e) : [...emotions, e]
     setEmotions(next)
-    fetch(`/api/books/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ emotions: next }) })
+    updateBook(id, { emotions: next })
   }
 
   if (loading) return (
