@@ -4,6 +4,7 @@ import { use } from 'react'
 import { TopBar } from '@/components/TopBar'
 import { MarketValueCard } from '@/components/MarketValueCard'
 import type { Book, MarketData } from '@/types'
+import { getBook } from '@/lib/storage'
 
 export default function MarketPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -12,14 +13,17 @@ export default function MarketPage({ params }: { params: Promise<{ id: string }>
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    Promise.all([
-      fetch(`/api/books/${id}`).then(r => r.json()),
-      fetch(`/api/market/${id}`).then(r => r.json()),
-    ]).then(([b, m]) => {
-      setBook(b)
-      setMarket(m)
-      setLoading(false)
-    }).catch(() => setLoading(false))
+    const b = getBook(id)
+    if (!b) { setLoading(false); return }
+    setBook(b)
+    fetch(`/api/market/${id}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ book: b }),
+    })
+      .then(r => r.json())
+      .then(m => { setMarket(m); setLoading(false) })
+      .catch(() => setLoading(false))
   }, [id])
 
   return (
@@ -32,7 +36,6 @@ export default function MarketPage({ params }: { params: Promise<{ id: string }>
             <p className="text-sm text-[var(--muted)]">{book.author}</p>
           </div>
         )}
-
         {loading ? (
           <>
             <div className="skeleton rounded-2xl h-40" />
@@ -43,12 +46,11 @@ export default function MarketPage({ params }: { params: Promise<{ id: string }>
           <MarketValueCard data={market} />
         ) : (
           <div className="p-6 text-center rounded-2xl" style={{ background: 'var(--cream-2)' }}>
-            <p className="text-[var(--muted)]">Dati di mercato non disponibili</p>
+            <p className="text-[var(--muted)]">Libro non trovato in libreria</p>
           </div>
         )}
-
         <div className="p-3 rounded-xl text-xs text-[var(--muted)]" style={{ background: 'var(--cream-2)' }}>
-          ℹ️ La stima è basata su vendite recenti su eBay, Catawiki, Vinted e Subito. I prezzi variano in base alle condizioni del libro e all'edizione.
+          ℹ️ Stima basata su età e tipologia. Clicca sulle piattaforme per vedere i prezzi reali attuali.
         </div>
       </div>
     </div>

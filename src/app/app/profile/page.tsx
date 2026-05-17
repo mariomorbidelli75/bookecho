@@ -1,15 +1,16 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { BookOpen, Star, TrendingUp, Zap, Settings, ChevronRight } from 'lucide-react'
+import { BookOpen, Star, TrendingUp, Zap, ChevronRight } from 'lucide-react'
 import { TopBar } from '@/components/TopBar'
 import type { Book } from '@/types'
 import { formatPrice } from '@/lib/utils'
+import { getBooks } from '@/lib/storage'
 
 export default function ProfilePage() {
   const [books, setBooks] = useState<Book[]>([])
 
   useEffect(() => {
-    fetch('/api/books').then(r => r.json()).then(setBooks)
+    setBooks(getBooks())
   }, [])
 
   const read = books.filter(b => b.status === 'read')
@@ -31,9 +32,7 @@ export default function ProfilePage() {
   return (
     <div>
       <TopBar title="Profilo" />
-
       <div className="px-4 py-6 space-y-5">
-        {/* Avatar */}
         <div className="flex items-center gap-4">
           <div className="w-16 h-16 rounded-2xl flex items-center justify-center font-serif text-2xl font-bold" style={{ background: 'var(--forest)', color: 'var(--cream)' }}>
             M
@@ -43,8 +42,6 @@ export default function ProfilePage() {
             <p className="text-sm text-[var(--muted)]">Collezionista di libri</p>
           </div>
         </div>
-
-        {/* Stats grid */}
         <div className="grid grid-cols-2 gap-2">
           {STATS.map(s => (
             <div key={s.label} className="p-4 rounded-2xl" style={{ background: 'var(--cream-2)' }}>
@@ -54,13 +51,11 @@ export default function ProfilePage() {
             </div>
           ))}
         </div>
-
-        {/* Settings */}
         <div className="rounded-2xl overflow-hidden border border-[var(--line)]">
           {[
-            { label: 'API Keys', desc: 'Claude, ElevenLabs, Google Books' },
-            { label: 'Modalità Demo', desc: process.env.NEXT_PUBLIC_DEMO_MODE === 'true' ? 'Attiva' : 'Disattiva' },
-            { label: 'Esporta libreria', desc: 'JSON / CSV' },
+            { label: 'Libri in archivio', desc: `${books.length} libri salvati` },
+            { label: 'Archiviazione', desc: 'Locale (questo dispositivo)' },
+            { label: 'BookEcho', desc: 'v1.0 — Produzione' },
           ].map((item, i) => (
             <div key={i} className="flex items-center justify-between px-4 py-3.5 border-b border-[var(--line)] last:border-none" style={{ background: 'white' }}>
               <div>
@@ -71,8 +66,6 @@ export default function ProfilePage() {
             </div>
           ))}
         </div>
-
-        <p className="text-center text-xs text-[var(--muted)]">BookEcho v1.0 · Modalità {process.env.NEXT_PUBLIC_DEMO_MODE === 'true' ? 'Demo' : 'Produzione'}</p>
       </div>
     </div>
   )
