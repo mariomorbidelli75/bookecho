@@ -1,21 +1,21 @@
 'use client'
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Camera, Upload, Zap, AlertCircle } from 'lucide-react'
+import { Camera, Upload, Zap, AlertCircle, Search } from 'lucide-react'
 import Image from 'next/image'
 import { TopBar } from '@/components/TopBar'
 import { fileToBase64 } from '@/lib/utils'
 import type { Book } from '@/types'
 import { createBook } from '@/lib/storage'
 
-type ScanState = 'idle' | 'scanning' | 'found' | 'error'
+type ScanState = 'idle' | 'scanning' | 'found' | 'error' | 'manual'
 type ScanMode = 'cover' | 'barcode'
 
 declare global {
   interface Window {
     BarcodeDetector: {
       new(opts?: { formats: string[] }): {
-        detect(src: HTMLVideoElement): Promise<Array<{ rawValue: string; format: string }>>
+        detect(src: HTMLVideoElement | ImageBitmap): Promise<Array<{ rawValue: string; format: string }>>
       }
     }
   }
@@ -38,6 +38,8 @@ export default function ScanPage() {
   const [manualIsbn, setManualIsbn] = useState('')
   const [hasBarcode, setHasBarcode] = useState(false)
   const [cameraActive, setCameraActive] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searching, setSearching] = useState(false)
 
   useEffect(() => {
     setHasBarcode(typeof window !== 'undefined' && 'BarcodeDetector' in window)
@@ -113,6 +115,25 @@ export default function ScanPage() {
     setPreview(base64)
     setState('scanning')
     setError('')
+
+    // 1. Try BarcodeDetector on the static image (Chrome/Android, no library needed)
+    if ('BarcodeDetector' in window) {
+      try {
+        const bitmap = await createImageBitmap(file)
+        const detector = new window.BarcodeDetector({ formats: ['ean_13', 'ean_8', 'code_128', 'code_39'] })
+        const codes = await detector.detect(bitmap)
+        bitmap.close()
+        for (const code of codes) {
+          const v = code.rawValue.replace(/[-\s]/g, '')
+          if (/^\d{10}(\d{3})?$/.test(v)) {
+            await handleIsbn(v)
+            return
+          }
+        }
+      } catch {}
+    }
+
+    // 2. Try AI scan (requires ANTHROPIC_API_KEY)
     try {
       const res = await fetch('/api/scan', {
         method: 'POST',
@@ -120,18 +141,65 @@ export default function ScanPage() {
         body: JSON.stringify({ image: base64 }),
       })
       const data = await res.json()
-      if (data.error || !data.title) {
-        setState('error')
-        setError(data.error ?? 'Libro non riconosciuto. Usa il barcode ISBN oppure riprova con un\'immagine più nitida.')
-      } else {
+      if (!data.error && data.title) {
         setResult(data)
         setState('found')
+        return
       }
+    } catch {}
+
+    // 3. Fallback: let the user search by title/author
+    setState('manual')
+  }, [handleIsbn])
+
+  // Search Google Books by title/author (free, no key for basic use)
+  const searchByTitle = async () => {
+    if (!searchQuery.trim()) return
+    setSearching(true)
+    setError('')
+    try {
+      const params = new URLSearchParams({ q: searchQuery, maxResults: '5' })
+      const res = await fetch(`https://www.googleapis.com/books/v1/volumes?${params}`)
+      const data = await res.json()
+      const items: Array<{ volumeInfo: {
+        title: string; authors?: string[]; publisher?: string; publishedDate?: string
+        description?: string; pageCount?: number; categories?: string[]
+        imageLinks?: { thumbnail?: string; smallThumbnail?: string }
+        industryIdentifiers?: Array<{ type: string; identifier: string }>
+        language?: string
+      } }> = data.items ?? []
+
+      if (items.length === 0) {
+        setError('Nessun risultato. Prova con un titolo diverso o aggiungi l\'autore.')
+        setSearching(false)
+        return
+      }
+
+      const info = items[0].volumeInfo
+      const rawThumb = info.imageLinks?.thumbnail ?? info.imageLinks?.smallThumbnail ?? null
+      const cover = rawThumb ? rawThumb.replace('http:', 'https:').replace('zoom=1', 'zoom=3') : undefined
+      const isbn = info.industryIdentifiers?.find(i => i.type === 'ISBN_13')?.identifier
+        ?? info.industryIdentifiers?.find(i => i.type === 'ISBN_10')?.identifier
+
+      setResult({
+        title: info.title,
+        author: info.authors?.join(', ') ?? 'Autore sconosciuto',
+        isbn,
+        publisher: info.publisher ?? undefined,
+        year: info.publishedDate ? parseInt(info.publishedDate) : undefined,
+        cover,
+        summary: info.description ?? undefined,
+        pages: info.pageCount ?? undefined,
+        genre: info.categories?.[0] ?? undefined,
+        language: info.language ?? undefined,
+      })
+      setState('found')
     } catch {
-      setState('error')
-      setError('Errore di connessione. Riprova.')
+      setError('Errore di connessione.')
+    } finally {
+      setSearching(false)
     }
-  }, [])
+  }
 
   const saveBook = () => {
     if (!result) return
@@ -147,6 +215,7 @@ export default function ScanPage() {
     setResult(null)
     setError('')
     setManualIsbn('')
+    setSearchQuery('')
     lastIsbnRef.current = ''
   }, [stopCamera])
 
@@ -186,7 +255,7 @@ export default function ScanPage() {
               {state === 'scanning' && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ background: 'rgba(0,0,0,0.55)' }}>
                   <Dots />
-                  <p className="text-white text-sm font-medium mt-2">Analisi copertina…</p>
+                  <p className="text-white text-sm font-medium mt-2">Analisi in corso…</p>
                 </div>
               )}
             </div>
@@ -203,7 +272,7 @@ export default function ScanPage() {
                   <Camera size={40} className="text-white/40" />
                 </div>
               </div>
-              <p className="text-white/70 text-sm">Scatta una foto alla copertina del libro</p>
+              <p className="text-white/70 text-sm">Fotografa la copertina o il retro con il codice a barre</p>
             </div>
           )
         )}
@@ -212,16 +281,12 @@ export default function ScanPage() {
         {mode === 'barcode' && state === 'idle' && (
           <div className="w-full flex flex-col items-center px-5 gap-5 py-4">
 
-            {/* Video area */}
             <div className="relative w-full max-w-sm overflow-hidden rounded-2xl" style={{ background: '#000', aspectRatio: '16/9' }}>
               <video ref={videoRef} className="w-full h-full object-cover" autoPlay playsInline muted />
-
-              {/* Barcode frame overlay */}
               <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                 <div className="relative w-4/5 h-16">
                   <div className="absolute inset-0 border border-white/20 rounded" />
                   <span className="absolute -top-5 left-0 right-0 text-center text-white/50 text-xs">Centra il codice a barre</span>
-                  {/* Corners */}
                   <Corner pos="top-0 left-0" cls="border-t-2 border-l-2" amber />
                   <Corner pos="top-0 right-0" cls="border-t-2 border-r-2" amber />
                   <Corner pos="bottom-0 left-0" cls="border-b-2 border-l-2" amber />
@@ -231,7 +296,6 @@ export default function ScanPage() {
                   )}
                 </div>
               </div>
-
               {!cameraActive && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
                   <span className="text-4xl">📊</span>
@@ -240,7 +304,6 @@ export default function ScanPage() {
               )}
             </div>
 
-            {/* Scanner button */}
             {hasBarcode && (
               <button
                 onClick={cameraActive ? stopCamera : startBarcodeCamera}
@@ -255,11 +318,10 @@ export default function ScanPage() {
 
             {!hasBarcode && (
               <p className="text-white/50 text-xs text-center max-w-xs">
-                Il tuo browser non supporta la scansione barcode. Usa l'input manuale qui sotto.
+                Il tuo browser non supporta la scansione barcode. Usa l&apos;input manuale qui sotto.
               </p>
             )}
 
-            {/* Manual ISBN input */}
             <div className="w-full max-w-sm">
               <p className="text-white/50 text-xs mb-2 text-center">
                 {hasBarcode ? 'Oppure inserisci il codice manualmente:' : 'Inserisci il codice ISBN:'}
@@ -288,8 +350,8 @@ export default function ScanPage() {
           </div>
         )}
 
-        {/* Barcode scanning spinner */}
-        {mode === 'barcode' && state === 'scanning' && (
+        {/* Scanning spinner */}
+        {state === 'scanning' && mode === 'barcode' && (
           <div className="flex flex-col items-center justify-center gap-4">
             <Dots />
             <p className="text-white text-sm font-medium">Ricerca libro in corso…</p>
@@ -297,7 +359,7 @@ export default function ScanPage() {
         )}
       </div>
 
-      {/* Result panel */}
+      {/* FOUND panel */}
       {state === 'found' && result && (
         <div className="rounded-t-3xl p-5 animate-fade-up" style={{ background: 'var(--cream)' }}>
           <div className="flex items-start gap-4 mb-4">
@@ -328,16 +390,60 @@ export default function ScanPage() {
         </div>
       )}
 
-      {/* Error panel */}
+      {/* MANUAL search panel — shown when automatic recognition fails */}
+      {state === 'manual' && (
+        <div className="rounded-t-3xl p-5 animate-fade-up" style={{ background: 'var(--cream)' }}>
+          <div className="flex items-center gap-2 mb-1">
+            <Search size={16} style={{ color: 'var(--forest)' }} />
+            <p className="font-semibold text-sm">Ricerca manuale</p>
+          </div>
+          <p className="text-xs text-[var(--muted)] mb-4">Riconoscimento automatico non riuscito. Inserisci il titolo e/o l&apos;autore:</p>
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder="Es. Il nome della rosa Umberto Eco"
+            autoFocus
+            className="w-full px-4 py-3 rounded-2xl text-sm outline-none mb-3"
+            style={{ background: 'var(--cream-2)', border: '1px solid var(--line)', color: 'var(--ink)' }}
+            onKeyDown={e => e.key === 'Enter' && searchByTitle()}
+          />
+          {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
+          <div className="flex gap-2">
+            <button onClick={reset} className="flex-1 py-3 rounded-2xl text-sm font-semibold border transition-all active:scale-95" style={{ borderColor: 'var(--line-2)', color: 'var(--ink)' }}>
+              Riprova foto
+            </button>
+            <button
+              onClick={searchByTitle}
+              disabled={searching || !searchQuery.trim()}
+              className="flex-1 py-3 rounded-2xl text-sm font-semibold transition-all active:scale-95 disabled:opacity-50"
+              style={{ background: 'var(--forest)', color: 'var(--cream)' }}
+            >
+              {searching ? 'Cerco…' : 'Cerca'}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* ERROR panel */}
       {state === 'error' && (
         <div className="rounded-t-3xl p-5 animate-fade-up" style={{ background: 'var(--cream)' }}>
           <div className="flex items-start gap-3 mb-4">
             <AlertCircle size={20} className="text-red-500 flex-shrink-0 mt-0.5" />
             <p className="text-sm font-medium text-red-700">{error}</p>
           </div>
-          <button onClick={reset} className="w-full py-3 rounded-2xl text-sm font-semibold" style={{ background: 'var(--forest)', color: 'var(--cream)' }}>
-            Riprova
-          </button>
+          <div className="flex gap-2">
+            <button onClick={reset} className="flex-1 py-3 rounded-2xl text-sm font-semibold border" style={{ borderColor: 'var(--line-2)', color: 'var(--ink)' }}>
+              Riprova
+            </button>
+            <button
+              onClick={() => { setError(''); setState('manual') }}
+              className="flex-1 py-3 rounded-2xl text-sm font-semibold"
+              style={{ background: 'var(--forest)', color: 'var(--cream)' }}
+            >
+              Cerca manuale
+            </button>
+          </div>
         </div>
       )}
 

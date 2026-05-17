@@ -8,6 +8,52 @@ import type { Book, BookStatus } from '@/types'
 import { cn } from '@/lib/utils'
 import { getBook, updateBook, deleteBook } from '@/lib/storage'
 
+// Must live OUTSIDE the page component — if defined inside, every book state
+// change re-creates the component type, React unmounts/remounts the input,
+// and the mobile keyboard closes on every keystroke.
+function BookField({ label, field, type = 'text', book, setBook }: {
+  label: string
+  field: keyof Book
+  type?: string
+  book: Partial<Book>
+  setBook: React.Dispatch<React.SetStateAction<Partial<Book>>>
+}) {
+  return (
+    <div>
+      <label className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)] block mb-1">{label}</label>
+      <input
+        type={type}
+        value={(book[field] as string | number | undefined) ?? ''}
+        onChange={e => setBook(prev => ({
+          ...prev,
+          [field]: type === 'number' ? (Number(e.target.value) || null) : e.target.value,
+        }))}
+        className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+        style={{ background: 'var(--cream-2)', border: '1px solid var(--line)', color: 'var(--ink)' }}
+      />
+    </div>
+  )
+}
+
+// Compress image to ≤600px JPEG before storing in localStorage (avoids 5MB limit)
+async function compressImage(file: File): Promise<string> {
+  return new Promise(resolve => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const MAX = 600
+      const scale = Math.min(1, MAX / Math.max(img.width, img.height))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(img.width * scale)
+      canvas.height = Math.round(img.height * scale)
+      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
+      resolve(canvas.toDataURL('image/jpeg', 0.82))
+    }
+    img.src = url
+  })
+}
+
 export default function EditBookPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
   const router = useRouter()
@@ -36,14 +82,10 @@ export default function EditBookPage({ params }: { params: Promise<{ id: string 
     router.push('/app')
   }
 
-  const handleCoverFile = (file: File) => {
-    const reader = new FileReader()
-    reader.onload = e => {
-      const dataUrl = e.target?.result as string
-      setBook(prev => ({ ...prev, cover: dataUrl }))
-      setCoverUrlInput('')
-    }
-    reader.readAsDataURL(file)
+  const handleCoverFile = async (file: File) => {
+    const dataUrl = await compressImage(file)
+    setBook(prev => ({ ...prev, cover: dataUrl }))
+    setCoverUrlInput('')
   }
 
   const applyUrlCover = () => {
@@ -52,19 +94,6 @@ export default function EditBookPage({ params }: { params: Promise<{ id: string 
       setShowUrlInput(false)
     }
   }
-
-  const Field = ({ label, field, type = 'text' }: { label: string; field: keyof Book; type?: string }) => (
-    <div>
-      <label className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)] block mb-1">{label}</label>
-      <input
-        type={type}
-        value={(book[field] as string | number | undefined) ?? ''}
-        onChange={e => setBook(prev => ({ ...prev, [field]: type === 'number' ? Number(e.target.value) || null : e.target.value }))}
-        className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
-        style={{ background: 'var(--cream-2)', border: '1px solid var(--line)', color: 'var(--ink)' }}
-      />
-    </div>
-  )
 
   return (
     <div>
@@ -83,6 +112,7 @@ export default function EditBookPage({ params }: { params: Promise<{ id: string 
             <div className="flex gap-3 items-start">
               <div className="w-20 h-28 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center" style={{ background: 'var(--cream-2)' }}>
                 {book.cover ? (
+                  // eslint-disable-next-line @next/next/no-img-element
                   <img src={book.cover} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <span className="text-2xl">📚</span>
@@ -127,18 +157,24 @@ export default function EditBookPage({ params }: { params: Promise<{ id: string 
                 </button>
               </div>
             )}
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={e => { const f = e.target.files?.[0]; if (f) handleCoverFile(f); e.target.value = '' }} />
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={e => { const f = e.target.files?.[0]; if (f) handleCoverFile(f); e.target.value = '' }}
+            />
           </div>
 
-          <Field label="Titolo" field="title" />
-          <Field label="Autore" field="author" />
-          <Field label="Editore" field="publisher" />
-          <Field label="Anno" field="year" type="number" />
-          <Field label="ISBN" field="isbn" />
-          <Field label="Pagine" field="pages" type="number" />
-          <Field label="Genere" field="genre" />
-          <Field label="Lingua" field="language" />
-          <Field label="Prezzo di acquisto (€)" field="purchasePrice" type="number" />
+          <BookField label="Titolo"                   field="title"          book={book} setBook={setBook} />
+          <BookField label="Autore"                   field="author"         book={book} setBook={setBook} />
+          <BookField label="Editore"                  field="publisher"      book={book} setBook={setBook} />
+          <BookField label="Anno"                     field="year"           type="number" book={book} setBook={setBook} />
+          <BookField label="ISBN"                     field="isbn"           book={book} setBook={setBook} />
+          <BookField label="Pagine"                   field="pages"          type="number" book={book} setBook={setBook} />
+          <BookField label="Genere"                   field="genre"          book={book} setBook={setBook} />
+          <BookField label="Lingua"                   field="language"       book={book} setBook={setBook} />
+          <BookField label="Prezzo di acquisto (€)"   field="purchasePrice"  type="number" book={book} setBook={setBook} />
 
           {/* Summary */}
           <div>
@@ -153,19 +189,24 @@ export default function EditBookPage({ params }: { params: Promise<{ id: string 
             />
           </div>
 
+          {/* Status */}
           <div>
             <label className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)] block mb-1">Stato</label>
             <div className="flex gap-2">
               {(['read', 'reading', 'wishlist'] as BookStatus[]).map(s => (
-                <button key={s} onClick={() => setBook(prev => ({ ...prev, status: s }))}
+                <button
+                  key={s}
+                  onClick={() => setBook(prev => ({ ...prev, status: s }))}
                   className={cn('flex-1 py-2 rounded-xl text-xs font-semibold transition-all', book.status === s ? 'text-[var(--cream)]' : 'text-[var(--muted)]')}
-                  style={book.status === s ? { background: 'var(--forest)' } : { background: 'var(--cream-2)' }}>
+                  style={book.status === s ? { background: 'var(--forest)' } : { background: 'var(--cream-2)' }}
+                >
                   {s === 'read' ? 'Letto' : s === 'reading' ? 'In lettura' : 'Lista desideri'}
                 </button>
               ))}
             </div>
           </div>
 
+          {/* Notes */}
           <div>
             <label className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)] block mb-2">Note personali</label>
             <textarea
@@ -177,7 +218,12 @@ export default function EditBookPage({ params }: { params: Promise<{ id: string 
             />
           </div>
 
-          <button onClick={save} disabled={saving} className="w-full py-3.5 rounded-2xl text-sm font-semibold transition-all active:scale-95" style={{ background: 'var(--forest)', color: 'var(--cream)' }}>
+          <button
+            onClick={save}
+            disabled={saving}
+            className="w-full py-3.5 rounded-2xl text-sm font-semibold transition-all active:scale-95"
+            style={{ background: 'var(--forest)', color: 'var(--cream)' }}
+          >
             {saving ? 'Salvataggio…' : 'Salva modifiche'}
           </button>
         </div>
