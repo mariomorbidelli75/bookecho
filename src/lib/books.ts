@@ -1,3 +1,55 @@
+interface OpenLibraryBook {
+  title?: string
+  authors?: Array<{ name: string }>
+  publishers?: Array<{ name: string }>
+  publish_date?: string
+  number_of_pages?: number
+  subjects?: Array<string | { name: string }>
+  cover?: { small?: string; medium?: string; large?: string }
+  description?: string | { value: string }
+  languages?: Array<{ key: string }>
+  identifiers?: { isbn_13?: string[]; isbn_10?: string[] }
+}
+
+export async function lookupByIsbn(isbn: string): Promise<Record<string, unknown> | null> {
+  const clean = isbn.replace(/[-\s]/g, '')
+
+  // Open Library (free, no key)
+  try {
+    const res = await fetch(
+      `https://openlibrary.org/api/books?bibkeys=ISBN:${clean}&format=json&jscmd=data`
+    )
+    if (res.ok) {
+      const data = await res.json() as Record<string, OpenLibraryBook>
+      const book = data[`ISBN:${clean}`]
+      if (book?.title) return mapOpenLibraryBook(book, clean)
+    }
+  } catch {}
+
+  // Fallback: Google Books
+  const gb = await getBookByIsbn(clean)
+  if (gb) return mapGoogleBook(gb)
+
+  return null
+}
+
+function mapOpenLibraryBook(ol: OpenLibraryBook, isbn: string): Record<string, unknown> {
+  const cover = ol.cover?.large ?? ol.cover?.medium ?? ol.cover?.small ?? null
+  const author = ol.authors?.map(a => a.name).join(', ') ?? 'Autore sconosciuto'
+  const publisher = ol.publishers?.[0]?.name ?? null
+  const yearMatch = ol.publish_date?.match(/\d{4}/)
+  const year = yearMatch ? parseInt(yearMatch[0]) : null
+  const pages = ol.number_of_pages ?? null
+  const genre = ol.subjects
+    ? (typeof ol.subjects[0] === 'string' ? ol.subjects[0] : ol.subjects[0]?.name) ?? null
+    : null
+  const rawDesc = ol.description
+  const summary = typeof rawDesc === 'string' ? rawDesc : rawDesc?.value ?? null
+  const langKey = ol.languages?.[0]?.key?.replace('/languages/', '') ?? null
+
+  return { title: ol.title, author, isbn, publisher, year, cover, summary, pages, genre, language: langKey }
+}
+
 export interface GoogleBook {
   id: string
   volumeInfo: {
