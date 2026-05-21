@@ -4,7 +4,7 @@ import { use } from 'react'
 import { TopBar } from '@/components/TopBar'
 import { AudioPlayer } from '@/components/AudioPlayer'
 import type { Book } from '@/types'
-import { getBook } from '@/lib/storage'
+import { getBook, updateBook } from '@/lib/storage'
 
 export default function AudioPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -49,6 +49,11 @@ export default function AudioPage({ params }: { params: Promise<{ id: string }> 
       } else {
         const json = await r.json()
         setAudioData(json)
+        // Cache the Wikipedia summary fetched server-side so it shows next time
+        if (json.summary && book) {
+          updateBook(id, { summary: json.summary })
+          setBook(prev => prev ? { ...prev, summary: json.summary } : prev)
+        }
       }
     } catch {
       if (book) {

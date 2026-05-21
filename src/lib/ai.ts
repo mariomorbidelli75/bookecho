@@ -53,10 +53,18 @@ export async function generateAudioScript(book: Partial<Book>): Promise<string> 
 }
 
 function buildAudioScript(book: Partial<Book>): string {
-  const year = book.year ? `, pubblicato nel ${book.year},` : ''
-  const genre = book.genre ? ` Un ${book.genre.toLowerCase()}.` : ''
-  const summary = book.summary ? ` ${book.summary}` : ''
-  return `Benvenuto in BookEcho. "${book.title}" di ${book.author}${year} ti aspetta.${genre}${summary} Un libro che non dimenticherai.`
+  const byline = book.author ? ` di ${book.author}` : ''
+  const year = book.year ? ` — ${book.year}` : ''
+
+  if (book.summary && book.summary.length > 80) {
+    // Take the first 2–3 sentences (≤420 chars) for an ~90-second read
+    const sentences = book.summary.match(/[^.!?…]+[.!?…]+/g) ?? []
+    const body = sentences.slice(0, 3).join(' ').replace(/\s+/g, ' ').trim().slice(0, 420)
+    return `"${book.title}"${byline}${year}.\n\n${body}\n\nScopri questo libro nella tua libreria BookEcho.`
+  }
+
+  const genre = book.genre ? ` Un ${book.genre.toLowerCase()} da non perdere.` : ''
+  return `"${book.title}"${byline}${year}.${genre} Un libro che non dimenticherai. Scoprilo nella tua libreria BookEcho.`
 }
 
 export async function generateSellListing(book: Book, platform: string): Promise<SellListing> {
