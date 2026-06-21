@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { BookOpen, Star, TrendingUp, Zap, ChevronRight } from 'lucide-react'
+import { BookOpen, Star, TrendingUp, Zap, ChevronRight, Gift, Users } from 'lucide-react'
+import Link from 'next/link'
 import { TopBar } from '@/components/TopBar'
 import type { Book } from '@/types'
 import { formatPrice } from '@/lib/utils'
@@ -51,6 +52,26 @@ export default function ProfilePage() {
             </div>
           ))}
         </div>
+
+        {/* Social — regala e invita */}
+        <div className="space-y-2">
+          {[
+            { href: '/app/gift', icon: Gift, title: 'Regala a un amico', desc: 'Paga tu il primo anno di abbonamento', color: 'var(--accent-amber)' },
+            { href: '/app/friends', icon: Users, title: 'Invita un amico', desc: 'Condividete le letture e scambiatevi i libri', color: 'var(--forest)' },
+          ].map(item => (
+            <Link key={item.href} href={item.href} className="flex items-center gap-3 p-4 rounded-2xl border border-[var(--line)] transition-all active:scale-[0.98] bg-white">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: item.color, color: item.color === 'var(--forest)' ? 'var(--cream)' : 'var(--ink)' }}>
+                <item.icon size={20} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold">{item.title}</p>
+                <p className="text-xs text-[var(--muted)]">{item.desc}</p>
+              </div>
+              <ChevronRight size={16} className="text-[var(--muted)] flex-shrink-0" />
+            </Link>
+          ))}
+        </div>
+
         <div className="rounded-2xl overflow-hidden border border-[var(--line)]">
           {[
             { label: 'Libri in archivio', desc: `${books.length} libri salvati` },

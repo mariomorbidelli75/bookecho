@@ -30,6 +30,23 @@ export function readingPercent(book: {
   return Math.min(100, Math.max(0, Math.round(cur)))
 }
 
+// "2 ore fa", "ieri", "3 giorni fa" — tempo trascorso in italiano.
+export function formatRelative(date: string | Date | null | undefined): string {
+  if (!date) return ''
+  const d = new Date(date)
+  if (isNaN(d.getTime())) return ''
+  const diff = Date.now() - d.getTime()
+  const min = Math.floor(diff / 60000)
+  if (min < 1) return 'adesso'
+  if (min < 60) return `${min} min fa`
+  const hours = Math.floor(min / 60)
+  if (hours < 24) return `${hours} ${hours === 1 ? 'ora' : 'ore'} fa`
+  const days = Math.floor(hours / 24)
+  if (days === 1) return 'ieri'
+  if (days < 30) return `${days} giorni fa`
+  return formatDate(d)
+}
+
 export function truncate(str: string, length: number): string {
   if (str.length <= length) return str
   return str.slice(0, length) + '…'
