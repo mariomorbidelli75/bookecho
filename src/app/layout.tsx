@@ -17,9 +17,9 @@ const inter = Inter({
 })
 
 export const metadata: Metadata = {
-  title: 'BookEcho — La libreria intelligente dei collezionisti',
-  description: 'Scansiona libri, ascolta trailer audio, scopri il valore di mercato e crea annunci per i marketplace.',
-  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'BookEcho' },
+  title: 'Librò — tutti i libri in un posto solo',
+  description: 'Tutti i libri in un posto solo. Scansiona libri, ascolta trailer audio, scopri il valore di mercato e crea annunci per i marketplace.',
+  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'Librò' },
 }
 
 export const viewport: Viewport = {

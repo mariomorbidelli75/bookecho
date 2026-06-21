@@ -60,11 +60,11 @@ function buildAudioScript(book: Partial<Book>): string {
     // Take the first 2–3 sentences (≤420 chars) for an ~90-second read
     const sentences = book.summary.match(/[^.!?…]+[.!?…]+/g) ?? []
     const body = sentences.slice(0, 3).join(' ').replace(/\s+/g, ' ').trim().slice(0, 420)
-    return `"${book.title}"${byline}${year}.\n\n${body}\n\nScopri questo libro nella tua libreria BookEcho.`
+    return `"${book.title}"${byline}${year}.\n\n${body}\n\nScopri questo libro nella tua libreria Librò.`
   }
 
   const genre = book.genre ? ` Un ${book.genre.toLowerCase()} da non perdere.` : ''
-  return `"${book.title}"${byline}${year}.${genre} Un libro che non dimenticherai. Scoprilo nella tua libreria BookEcho.`
+  return `"${book.title}"${byline}${year}.${genre} Un libro che non dimenticherai. Scoprilo nella tua libreria Librò.`
 }
 
 export async function generateSellListing(book: Book, platform: string): Promise<SellListing> {

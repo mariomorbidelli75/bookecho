@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { Star, Headphones, TrendingUp, ShoppingBag, BookOpen, Trash2, Heart, Edit3 } from 'lucide-react'
 import { TopBar } from '@/components/TopBar'
 import { ReadingProgress } from '@/components/ReadingProgress'
+import { AuthorBooks } from '@/components/AuthorBooks'
 import type { Book } from '@/types'
 import { cn, formatDate } from '@/lib/utils'
 import { EMOTIONS } from '@/types'
@@ -163,6 +164,7 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
         {/* Meta info */}
         <div className="p-4 rounded-2xl space-y-2" style={{ background: 'var(--cream-2)' }}>
           {[
+            { label: 'Casa editrice', value: book.publisher },
             { label: 'ISBN', value: book.isbn },
             { label: 'Pagine', value: book.pages },
             { label: 'Genere', value: book.genre },
@@ -175,6 +177,9 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
             </div>
           ))}
         </div>
+
+        {/* Altri libri dello stesso autore + marketplace */}
+        <AuthorBooks author={book.author} excludeTitle={book.title} />
       </div>
     </div>
   )

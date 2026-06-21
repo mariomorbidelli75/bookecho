@@ -48,8 +48,8 @@ export default function LandingPage() {
         borderBottom: '1px solid var(--line)',
       }}>
         <div style={{ fontFamily: 'Fraunces, serif', fontSize: 22, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 30, height: 30, background: 'var(--forest)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--cream)', fontSize: 15, fontWeight: 700 }}>B</div>
-          BookEcho
+          <div style={{ width: 30, height: 30, background: 'var(--forest)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--cream)', fontSize: 15, fontWeight: 700 }}>L</div>
+          Librò
         </div>
         <Link
           href="/app"
@@ -74,9 +74,9 @@ export default function LandingPage() {
         </div>
 
         <h1 style={{ fontFamily: 'Fraunces, serif', fontSize: 'clamp(48px, 7vw, 96px)', fontWeight: 600, lineHeight: 1.02, letterSpacing: '-0.03em', marginBottom: 24, maxWidth: 900 }}>
-          La tua libreria <span style={{ fontStyle: 'italic', fontWeight: 400, color: 'var(--forest)' }}>vintage</span>,{' '}
+          <span style={{ fontStyle: 'italic', fontWeight: 400, color: 'var(--forest)' }}>Librò</span>: tutti i libri{' '}
           <span style={{ position: 'relative', display: 'inline-block' }}>
-            intelligente
+            in un posto solo
             <span style={{ position: 'absolute', left: 0, right: 0, bottom: 4, height: 14, background: 'var(--accent-amber-soft)', zIndex: -1, opacity: 0.7 }} />
           </span>.
         </h1>
@@ -148,7 +148,7 @@ export default function LandingPage() {
           Pronto a <span style={{ fontStyle: 'italic', color: 'var(--accent-amber)', fontWeight: 400 }}>scoprire</span> la tua libreria?
         </h2>
         <p style={{ fontSize: 18, color: 'rgba(245,241,232,0.8)', maxWidth: 500, margin: '0 auto 40px' }}>
-          BookEcho funziona subito, senza registrazione. Scansiona il tuo primo libro in 30 secondi.
+          Librò funziona subito, senza registrazione. Scansiona il tuo primo libro in 30 secondi.
         </p>
         <Link href="/app" style={{
           background: 'var(--accent-amber)', color: 'var(--ink)', padding: '18px 40px',
@@ -162,7 +162,7 @@ export default function LandingPage() {
 
       {/* FOOTER */}
       <footer style={{ background: 'var(--forest-darker)', color: 'rgba(245,241,232,0.5)', padding: '28px 48px', textAlign: 'center', fontSize: 13 }}>
-        © 2026 BookEcho · Fatto con ❤️ per i veri amanti dei libri
+        © 2026 Librò · tutti i libri in un posto solo · Fatto con ❤️ per i veri amanti dei libri
       </footer>
 
       <style>{`

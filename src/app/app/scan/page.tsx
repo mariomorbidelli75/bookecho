@@ -375,7 +375,8 @@ export default function ScanPage() {
               </div>
               <h3 className="font-serif text-lg font-semibold leading-tight truncate">{result.title}</h3>
               <p className="text-sm text-[var(--muted)] truncate">{result.author}</p>
-              {result.year && <p className="text-xs text-[var(--muted)]">{result.year}{result.publisher ? ` · ${result.publisher}` : ''}</p>}
+              {result.publisher && <p className="text-xs text-[var(--muted)] truncate">🏛️ {result.publisher}{result.year ? ` · ${result.year}` : ''}</p>}
+              {!result.publisher && result.year && <p className="text-xs text-[var(--muted)]">{result.year}</p>}
               {result.isbn && <p className="text-xs font-mono text-[var(--muted)]">ISBN {result.isbn}</p>}
             </div>
           </div>

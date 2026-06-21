@@ -192,15 +192,15 @@ export default function EditBookPage({ params }: { params: Promise<{ id: string 
           {/* Status */}
           <div>
             <label className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)] block mb-1">Stato</label>
-            <div className="flex gap-2">
-              {(['read', 'reading', 'wishlist'] as BookStatus[]).map(s => (
+            <div className="grid grid-cols-2 gap-2">
+              {(['read', 'reading', 'to-read', 'wishlist'] as BookStatus[]).map(s => (
                 <button
                   key={s}
                   onClick={() => setBook(prev => ({ ...prev, status: s }))}
-                  className={cn('flex-1 py-2 rounded-xl text-xs font-semibold transition-all', book.status === s ? 'text-[var(--cream)]' : 'text-[var(--muted)]')}
+                  className={cn('py-2 rounded-xl text-xs font-semibold transition-all', book.status === s ? 'text-[var(--cream)]' : 'text-[var(--muted)]')}
                   style={book.status === s ? { background: 'var(--forest)' } : { background: 'var(--cream-2)' }}
                 >
-                  {s === 'read' ? 'Letto' : s === 'reading' ? 'In lettura' : 'Lista desideri'}
+                  {s === 'read' ? 'Letto' : s === 'reading' ? 'In lettura' : s === 'to-read' ? 'Da leggere' : 'Lista desideri'}
                 </button>
               ))}
             </div>

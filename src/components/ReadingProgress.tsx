@@ -43,7 +43,7 @@ export function ReadingProgress({ book, onUpdate }: Props) {
       setStarted(now)
       updates.readingStartedAt = now
     }
-    if (value > 0 && book.status === 'wishlist') updates.status = 'reading'
+    if (value > 0 && (book.status === 'wishlist' || book.status === 'to-read')) updates.status = 'reading'
     if (hasPages && value >= pages) {
       if (!finished) {
         const now = new Date().toISOString()

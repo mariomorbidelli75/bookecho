@@ -55,7 +55,7 @@ export default function ProfilePage() {
           {[
             { label: 'Libri in archivio', desc: `${books.length} libri salvati` },
             { label: 'Archiviazione', desc: 'Locale (questo dispositivo)' },
-            { label: 'BookEcho', desc: 'v1.0 — Produzione' },
+            { label: 'Librò', desc: 'tutti i libri in un posto solo · v1.0' },
           ].map((item, i) => (
             <div key={i} className="flex items-center justify-between px-4 py-3.5 border-b border-[var(--line)] last:border-none" style={{ background: 'white' }}>
               <div>

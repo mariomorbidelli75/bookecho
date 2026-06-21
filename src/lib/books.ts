@@ -131,6 +131,68 @@ export async function getBookByIsbn(isbn: string): Promise<GoogleBook | null> {
   return results[0] ?? null
 }
 
+export interface AuthorBook {
+  title: string
+  author: string
+  year: number | null
+  cover: string | null
+  isbn: string | null
+}
+
+// Altri libri dello stesso autore (Google Books `inauthor:`).
+// Deduplica per titolo normalizzato e ordina dal più recente.
+export async function searchByAuthor(author: string, excludeTitle = '', limit = 8): Promise<AuthorBook[]> {
+  if (!author || author === 'Autore sconosciuto') return []
+
+  const apiKey = process.env.GOOGLE_BOOKS_API_KEY
+  const params = new URLSearchParams({
+    q: `inauthor:"${author}"`,
+    maxResults: '40',
+    orderBy: 'relevance',
+    printType: 'books',
+    langRestrict: 'it',
+  })
+  if (apiKey) params.append('key', apiKey)
+
+  let items: GoogleBook[] = []
+  try {
+    const res = await fetch(`https://www.googleapis.com/books/v1/volumes?${params}`, {
+      next: { revalidate: 86400 },
+    } as RequestInit)
+    if (res.ok) items = (await res.json()).items ?? []
+  } catch {
+    return []
+  }
+
+  const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
+  const excluded = normalize(excludeTitle)
+  const seen = new Set<string>()
+  const out: AuthorBook[] = []
+
+  for (const gb of items) {
+    const mapped = mapGoogleBook(gb) as Record<string, unknown>
+    const title = mapped.title as string | undefined
+    if (!title) continue
+    const key = normalize(title)
+    if (!key || key === excluded || seen.has(key)) continue
+    // Tieni solo i libri in cui l'autore compare davvero
+    const authors = gb.volumeInfo.authors?.map(a => a.toLowerCase()) ?? []
+    if (!authors.some(a => a.includes(author.toLowerCase().split(',')[0].trim()))) continue
+    seen.add(key)
+    out.push({
+      title,
+      author: mapped.author as string,
+      year: (mapped.year as number | null) ?? null,
+      cover: (mapped.cover as string | null) ?? null,
+      isbn: (mapped.isbn as string | null) ?? null,
+    })
+  }
+
+  return out
+    .sort((a, b) => (b.year ?? 0) - (a.year ?? 0))
+    .slice(0, limit)
+}
+
 export function mapGoogleBook(gb: GoogleBook): Record<string, unknown> {
   const info = gb.volumeInfo
   const isbn = info.industryIdentifiers?.find(i => i.type === 'ISBN_13')?.identifier
