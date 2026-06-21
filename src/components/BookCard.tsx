@@ -2,7 +2,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { Star, BookOpen, Eye } from 'lucide-react'
 import type { Book } from '@/types'
-import { cn } from '@/lib/utils'
+import { cn, readingPercent } from '@/lib/utils'
 
 interface BookCardProps {
   book: Book
@@ -17,6 +17,7 @@ const STATUS_BADGE = {
 
 export function BookCard({ book, compact = false }: BookCardProps) {
   const badge = STATUS_BADGE[book.status]
+  const progress = book.status === 'reading' ? readingPercent(book) : 0
 
   return (
     <Link
@@ -66,6 +67,16 @@ export function BookCard({ book, compact = false }: BookCardProps) {
             </span>
           )}
         </div>
+
+        {/* Reading progress bar */}
+        {book.status === 'reading' && progress > 0 && (
+          <div className="mt-1.5 flex items-center gap-2">
+            <div className="flex-1 h-1 rounded-full overflow-hidden" style={{ background: 'var(--cream-3)' }}>
+              <div className="h-full rounded-full" style={{ width: `${progress}%`, background: 'var(--accent-amber)' }} />
+            </div>
+            <span className="text-[10px] font-semibold text-[#B86B1A]">{progress}%</span>
+          </div>
+        )}
       </div>
     </Link>
   )

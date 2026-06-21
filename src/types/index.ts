@@ -19,6 +19,9 @@ export interface Book {
   genre?: string | null
   audioUrl?: string | null
   marketData?: MarketData | null
+  readingStartedAt?: string | null
+  readingFinishedAt?: string | null
+  currentPage?: number | null
   createdAt: string
   updatedAt: string
 }

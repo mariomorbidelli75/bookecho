@@ -5,6 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Star, Headphones, TrendingUp, ShoppingBag, BookOpen, Trash2, Heart, Edit3 } from 'lucide-react'
 import { TopBar } from '@/components/TopBar'
+import { ReadingProgress } from '@/components/ReadingProgress'
 import type { Book } from '@/types'
 import { cn, formatDate } from '@/lib/utils'
 import { EMOTIONS } from '@/types'
@@ -42,6 +43,11 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
     const next = emotions.includes(e) ? emotions.filter(x => x !== e) : [...emotions, e]
     setEmotions(next)
     updateBook(id, { emotions: next })
+  }
+
+  const handleReadingUpdate = (updates: Partial<Book>) => {
+    const updated = updateBook(id, updates)
+    if (updated) setBook(updated)
   }
 
   if (loading) return (
@@ -100,6 +106,9 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
           ))}
           <span className="text-xs text-[var(--muted)] ml-2">{rating ? `${rating}/5` : 'Valuta'}</span>
         </div>
+
+        {/* Reading progress */}
+        <ReadingProgress book={book} onUpdate={handleReadingUpdate} />
 
         {/* Summary */}
         {book.summary && (
