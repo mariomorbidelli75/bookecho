@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { Search, BookOpen, Plus, CalendarRange, ChevronDown } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { BookCard } from '@/components/BookCard'
 import type { Book, BookStatus } from '@/types'
 import { cn } from '@/lib/utils'
@@ -88,7 +89,11 @@ export default function LibraryPage() {
   return (
     <div>
       {/* Header */}
-      <div className="px-4 pt-14 pb-4" style={{ background: 'var(--cream)' }}>
+      <div className="px-4 pt-8 pb-4" style={{ background: 'var(--cream)' }}>
+        {/* Logo Librò centrato in alto */}
+        <div className="flex justify-center mb-4">
+          <Image src="/logo.png" alt="Librò" width={120} height={107} priority className="h-12 w-auto object-contain" />
+        </div>
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="font-serif text-2xl font-semibold text-[var(--ink)]">La mia libreria</h1>

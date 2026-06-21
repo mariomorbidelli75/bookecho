@@ -47,9 +47,9 @@ export default function LandingPage() {
         background: 'rgba(245,241,232,0.88)', backdropFilter: 'blur(20px)',
         borderBottom: '1px solid var(--line)',
       }}>
-        <div style={{ fontFamily: 'Fraunces, serif', fontSize: 22, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 30, height: 30, background: 'var(--forest)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--cream)', fontSize: 15, fontWeight: 700 }}>L</div>
-          Librò
+        <div style={{ display: 'flex', alignItems: 'center' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logo.png" alt="Librò" style={{ height: 44, width: 'auto', objectFit: 'contain' }} />
         </div>
         <Link
           href="/app"
@@ -64,6 +64,8 @@ export default function LandingPage() {
 
       {/* HERO */}
       <section style={{ minHeight: '100vh', padding: '140px 48px 80px', maxWidth: 1200, margin: '0 auto', display: 'flex', flexDirection: 'column', alignItems: 'flex-start', justifyContent: 'center' }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/logo.png" alt="Librò" style={{ height: 120, width: 'auto', objectFit: 'contain', marginBottom: 28 }} />
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: 8, padding: '6px 14px',
           background: 'var(--cream-2)', border: '1px solid var(--line-2)', borderRadius: 100,

@@ -1,18 +1,40 @@
 'use client'
-import { useState, useEffect } from 'react'
-import { BookOpen, Star, TrendingUp, Zap, ChevronRight, Gift, Users } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { BookOpen, Star, TrendingUp, Zap, ChevronRight, Gift, Users, Camera, Check, Pencil } from 'lucide-react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { TopBar } from '@/components/TopBar'
 import type { Book } from '@/types'
-import { formatPrice } from '@/lib/utils'
+import { formatPrice, compressImageSquare } from '@/lib/utils'
 import { getBooks } from '@/lib/storage'
+import { getMyName, setMyName, getMyAvatar, setMyAvatar, getFriends } from '@/lib/social'
 
 export default function ProfilePage() {
   const [books, setBooks] = useState<Book[]>([])
+  const [name, setName] = useState('Mario')
+  const [editingName, setEditingName] = useState(false)
+  const [avatar, setAvatar] = useState<string | null>(null)
+  const [friendCount, setFriendCount] = useState(0)
+  const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     setBooks(getBooks())
+    setName(getMyName())
+    setAvatar(getMyAvatar())
+    setFriendCount(getFriends().length)
   }, [])
+
+  const handleAvatar = async (file: File) => {
+    const dataUrl = await compressImageSquare(file, 400)
+    setMyAvatar(dataUrl)
+    setAvatar(dataUrl)
+  }
+
+  const saveName = () => {
+    setMyName(name.trim() || 'Mario')
+    setName(name.trim() || 'Mario')
+    setEditingName(false)
+  }
 
   const read = books.filter(b => b.status === 'read')
   const avgRating = read.filter(b => b.rating).reduce((a, b) => a + (b.rating ?? 0), 0) / (read.filter(b => b.rating).length || 1)
@@ -35,14 +57,50 @@ export default function ProfilePage() {
       <TopBar title="Profilo" />
       <div className="px-4 py-6 space-y-5">
         <div className="flex items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl flex items-center justify-center font-serif text-2xl font-bold" style={{ background: 'var(--forest)', color: 'var(--cream)' }}>
-            M
-          </div>
-          <div>
-            <h2 className="font-serif text-lg font-semibold">Mario</h2>
+          <button
+            onClick={() => fileRef.current?.click()}
+            className="relative w-16 h-16 rounded-2xl overflow-hidden flex items-center justify-center font-serif text-2xl font-bold flex-shrink-0 transition-all active:scale-95"
+            style={{ background: 'var(--forest)', color: 'var(--cream)' }}
+            aria-label="Cambia immagine profilo"
+          >
+            {avatar ? (
+              <Image src={avatar} alt="" fill className="object-cover" unoptimized />
+            ) : (
+              name.charAt(0).toUpperCase()
+            )}
+            <span className="absolute bottom-0 inset-x-0 flex items-center justify-center py-0.5" style={{ background: 'rgba(0,0,0,0.45)' }}>
+              <Camera size={12} className="text-white" />
+            </span>
+          </button>
+          <div className="flex-1 min-w-0">
+            {editingName ? (
+              <div className="flex items-center gap-2">
+                <input
+                  value={name}
+                  onChange={e => setName(e.target.value)}
+                  autoFocus
+                  onKeyDown={e => e.key === 'Enter' && saveName()}
+                  className="font-serif text-lg font-semibold bg-transparent border-b outline-none w-full"
+                  style={{ borderColor: 'var(--line-2)', color: 'var(--ink)' }}
+                />
+                <button onClick={saveName} className="text-[var(--forest)] flex-shrink-0"><Check size={18} /></button>
+              </div>
+            ) : (
+              <button onClick={() => setEditingName(true)} className="flex items-center gap-1.5">
+                <h2 className="font-serif text-lg font-semibold">{name}</h2>
+                <Pencil size={13} className="text-[var(--muted)]" />
+              </button>
+            )}
             <p className="text-sm text-[var(--muted)]">Collezionista di libri</p>
           </div>
         </div>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={e => { const f = e.target.files?.[0]; if (f) handleAvatar(f); e.target.value = '' }}
+        />
         <div className="grid grid-cols-2 gap-2">
           {STATS.map(s => (
             <div key={s.label} className="p-4 rounded-2xl" style={{ background: 'var(--cream-2)' }}>
@@ -57,7 +115,7 @@ export default function ProfilePage() {
         <div className="space-y-2">
           {[
             { href: '/app/gift', icon: Gift, title: 'Regala a un amico', desc: 'Paga tu il primo anno di abbonamento', color: 'var(--accent-amber)' },
-            { href: '/app/friends', icon: Users, title: 'Invita un amico', desc: 'Condividete le letture e scambiatevi i libri', color: 'var(--forest)' },
+            { href: '/app/friends', icon: Users, title: 'Invita un amico', desc: friendCount > 0 ? `${friendCount} ${friendCount === 1 ? 'amico iscritto' : 'amici iscritti'} · condividete le letture` : 'Condividete le letture e scambiatevi i libri', color: 'var(--forest)' },
           ].map(item => (
             <Link key={item.href} href={item.href} className="flex items-center gap-3 p-4 rounded-2xl border border-[var(--line)] transition-all active:scale-[0.98] bg-white">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: item.color, color: item.color === 'var(--forest)' ? 'var(--cream)' : 'var(--ink)' }}>

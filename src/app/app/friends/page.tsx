@@ -119,9 +119,16 @@ export default function FriendsPage() {
 
         {/* Friends feed */}
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)] mb-2">
-            Cosa leggono i tuoi amici
-          </p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">
+              Amici iscritti
+            </p>
+            {friends.length > 0 && (
+              <span className="text-xs font-semibold px-2 py-0.5 rounded-full" style={{ background: 'rgba(30,77,58,0.1)', color: 'var(--forest)' }}>
+                {friends.length} {friends.length === 1 ? 'iscritto' : 'iscritti'}
+              </span>
+            )}
+          </div>
 
           {friends.length === 0 ? (
             <div className="flex flex-col items-center text-center py-10">
@@ -148,7 +155,7 @@ export default function FriendsPage() {
                             <Trash2 size={14} />
                           </button>
                         </div>
-                        <p className="text-xs text-[var(--muted)]">{formatRelative(f.updatedAt)}</p>
+                        <p className="text-xs text-[var(--muted)]">Iscritto {formatRelative(f.joinedAt)} · attivo {formatRelative(f.updatedAt)}</p>
 
                         {/* Current book */}
                         <div className="flex items-center gap-2 mt-2 p-2 rounded-xl" style={{ background: 'var(--cream-2)' }}>

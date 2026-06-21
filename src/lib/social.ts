@@ -17,11 +17,15 @@ export interface Friend {
   favoriteGenres: string[]
   /** Quando ha aggiornato l'ultima lettura */
   updatedAt: string
+  /** Quando si è iscritto a Librò con il tuo invito */
+  joinedAt: string
 }
 
 const FRIENDS_KEY = 'libro_friends'
 const SHARE_KEY = 'libro_sharing'
 const REF_KEY = 'libro_refcode'
+const NAME_KEY = 'libro_username'
+const AVATAR_KEY = 'libro_avatar'
 
 const COLORS = ['#1E4D3A', '#E89B4C', '#4A8B6F', '#9B59B6', '#C8542A', '#0B5FA5']
 
@@ -59,13 +63,15 @@ function saveFriends(friends: Friend[]): void {
 export function addFriend(name: string): Friend {
   const friends = getFriends()
   const genres = [rand(DEMO_GENRES), rand(DEMO_GENRES)].filter((g, i, a) => a.indexOf(g) === i)
+  const now = new Date().toISOString()
   const friend: Friend = {
     id: `fr-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
     name: name.trim() || 'Amico',
     color: COLORS[friends.length % COLORS.length],
     currentBook: rand(DEMO_READS),
     favoriteGenres: genres,
-    updatedAt: new Date().toISOString(),
+    updatedAt: now,
+    joinedAt: now,
   }
   saveFriends([friend, ...friends])
   return friend
@@ -134,4 +140,27 @@ export function getRefCode(): string {
 export function inviteUrl(): string {
   const base = typeof window !== 'undefined' ? window.location.origin : 'https://bookecho-iota.vercel.app'
   return `${base}/app?invito=${getRefCode()}`
+}
+
+// ── Profilo utente: nome e immagine personalizzabili ────────────────────────
+export function getMyName(): string {
+  if (typeof window === 'undefined') return 'Mario'
+  return localStorage.getItem(NAME_KEY) || 'Mario'
+}
+
+export function setMyName(name: string): void {
+  localStorage.setItem(NAME_KEY, name)
+}
+
+export function getMyAvatar(): string | null {
+  if (typeof window === 'undefined') return null
+  return localStorage.getItem(AVATAR_KEY)
+}
+
+export function setMyAvatar(dataUrl: string): void {
+  localStorage.setItem(AVATAR_KEY, dataUrl)
+}
+
+export function clearMyAvatar(): void {
+  localStorage.removeItem(AVATAR_KEY)
 }

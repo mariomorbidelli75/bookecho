@@ -52,6 +52,30 @@ export function truncate(str: string, length: number): string {
   return str.slice(0, length) + '…'
 }
 
+// Comprime un'immagine a un quadrato JPEG ≤ maxPx prima di salvarla in
+// localStorage (evita il limite ~5MB). Ritaglia al centro per avatar quadrati.
+export function compressImageSquare(file: File, maxPx = 400): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const side = Math.min(img.width, img.height)
+      const sx = (img.width - side) / 2
+      const sy = (img.height - side) / 2
+      const canvas = document.createElement('canvas')
+      canvas.width = maxPx
+      canvas.height = maxPx
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return reject(new Error('no canvas context'))
+      ctx.drawImage(img, sx, sy, side, side, 0, 0, maxPx, maxPx)
+      resolve(canvas.toDataURL('image/jpeg', 0.85))
+    }
+    img.onerror = reject
+    img.src = url
+  })
+}
+
 export function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
