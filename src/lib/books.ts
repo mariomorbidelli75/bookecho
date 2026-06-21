@@ -155,34 +155,58 @@ export function mapGoogleBook(gb: GoogleBook): Record<string, unknown> {
   }
 }
 
-// Free Wikipedia summary — tries Italian first, then English
+// Free Wikipedia summary — tries Italian first, then English.
+// Picks the article about the *book*, not a same-named film/videogame/album.
 export async function fetchWikipediaSummary(title: string, author: string): Promise<string | null> {
   const lastName = author.split(' ').filter(Boolean).pop() ?? ''
-  const queries = [`${title} ${lastName}`.trim(), title]
+  // Bias the search toward the literary work
+  const queries = [
+    `${title} ${lastName} romanzo`.trim(),
+    `${title} ${lastName} libro`.trim(),
+    `${title} ${lastName}`.trim(),
+    title,
+  ]
+
+  let fallback: string | null = null
 
   for (const lang of ['it', 'en']) {
     for (const query of queries) {
       try {
         const searchParams = new URLSearchParams({
           action: 'query', list: 'search',
-          srsearch: query, format: 'json', srlimit: '1',
+          srsearch: query, format: 'json', srlimit: '5',
         })
         const searchRes = await fetch(`https://${lang}.wikipedia.org/w/api.php?${searchParams}`)
         if (!searchRes.ok) continue
         const searchData = await searchRes.json()
-        const firstResult = searchData.query?.search?.[0]
-        if (!firstResult) continue
+        const results: Array<{ title: string }> = searchData.query?.search ?? []
 
-        const pageTitle = encodeURIComponent(firstResult.title.replace(/\s+/g, '_'))
-        const summaryRes = await fetch(`https://${lang}.wikipedia.org/api/rest_v1/page/summary/${pageTitle}`)
-        if (!summaryRes.ok) continue
-        const summaryData = await summaryRes.json()
+        for (const result of results) {
+          const pageTitle = encodeURIComponent(result.title.replace(/\s+/g, '_'))
+          const summaryRes = await fetch(`https://${lang}.wikipedia.org/api/rest_v1/page/summary/${pageTitle}`)
+          if (!summaryRes.ok) continue
+          const summaryData = await summaryRes.json()
+          const extract: string = summaryData.extract ?? ''
+          if (extract.length <= 80) continue
 
-        if (summaryData.extract && summaryData.extract.length > 80) {
-          return summaryData.extract.slice(0, 700)
+          const verdict = classifyWikipediaArticle(summaryData.description ?? '', extract)
+          if (verdict === 'book') return extract.slice(0, 700)
+          // Remember a neutral article in case we never find an explicit book match
+          if (verdict === 'neutral' && !fallback) fallback = extract.slice(0, 700)
         }
       } catch {}
     }
   }
-  return null
+  return fallback
+}
+
+// Decide whether a Wikipedia article is about a book, or a film/videogame/etc.
+function classifyWikipediaArticle(description: string, extract: string): 'book' | 'other' | 'neutral' {
+  const text = `${description} ${extract.slice(0, 200)}`.toLowerCase()
+  const bookHints = /\b(romanzo|libro|saggio|racconto|novella|raccolta|novel|book|memoir|poesia|poem)\b/
+  const otherHints = /\b(film|movie|pellicola|videogioco|video game|videogame|album|singolo|canzone|song|serie tv|serie televisiva|tv series|episodio|episode|miniserie|opera teatrale|fumetto|graphic novel|sceneggiat|diretto da|directed by|sviluppato da|developed by)\b/
+
+  if (otherHints.test(text)) return 'other'
+  if (bookHints.test(text)) return 'book'
+  return 'neutral'
 }
