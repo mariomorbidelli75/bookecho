@@ -14,6 +14,7 @@ const FILTERS: { value: BookStatus | 'all'; label: string }[] = [
   { value: 'reading', label: 'In lettura' },
   { value: 'to-read', label: 'Da leggere' },
   { value: 'wishlist', label: 'Lista desideri' },
+  { value: 'sold', label: 'Venduti' },
 ]
 
 // La data in cui un libro è stato "letto": fine lettura se presente, altrimenti
@@ -67,6 +68,10 @@ export default function LibraryPage() {
   useEffect(() => {
     setBooks(getBooks())
     setLoading(false)
+    // Apertura diretta sulla vista Venduti (dopo uno scarico vendita)
+    if (new URLSearchParams(window.location.search).get('filter') === 'sold') {
+      setFilter('sold')
+    }
   }, [])
 
   const applyPreset = (p: Preset) => {
@@ -78,12 +83,20 @@ export default function LibraryPage() {
   const periodActive = filter === 'read' && (!!from || !!to)
 
   const filtered = books.filter(b => {
-    if (filter !== 'all' && b.status !== filter) return false
+    // I venduti vivono solo nella loro vista: fuori da lì la libreria è "attiva".
+    if (filter === 'sold') {
+      if (b.status !== 'sold') return false
+    } else {
+      if (b.status === 'sold') return false
+      if (filter !== 'all' && b.status !== filter) return false
+    }
     if (periodActive && !inRange(readDate(b), from, to)) return false
     if (search && !b.title.toLowerCase().includes(search.toLowerCase()) && !b.author.toLowerCase().includes(search.toLowerCase())) return false
     return true
   })
 
+  const activeBooks = books.filter(b => b.status !== 'sold')
+  const soldCount = books.length - activeBooks.length
   const periodCount = books.filter(b => b.status === 'read' && (!periodActive || inRange(readDate(b), from, to))).length
 
   return (
@@ -97,7 +110,7 @@ export default function LibraryPage() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <h1 className="font-serif text-2xl font-semibold text-[var(--ink)]">La mia libreria</h1>
-            <p className="text-xs text-[var(--muted)] mt-0.5">{books.length} libri · {books.filter(b => b.status === 'read').length} letti</p>
+            <p className="text-xs text-[var(--muted)] mt-0.5">{activeBooks.length} libri · {activeBooks.filter(b => b.status === 'read').length} letti{soldCount > 0 ? ` · ${soldCount} venduti` : ''}</p>
           </div>
           <Link
             href="/app/scan"
@@ -236,11 +249,23 @@ export default function LibraryPage() {
             <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ background: 'var(--cream-2)' }}>
               <BookOpen size={28} className="text-[var(--muted)]" />
             </div>
-            <h3 className="font-serif text-lg font-semibold mb-1">Nessun libro trovato</h3>
+            <h3 className="font-serif text-lg font-semibold mb-1">
+              {filter === 'sold' ? 'Nessun libro venduto' : 'Nessun libro trovato'}
+            </h3>
             <p className="text-sm text-[var(--muted)] mb-6">
-              {periodActive ? 'Nessun libro letto in questo periodo' : 'Scansiona la copertina di un libro per iniziare'}
+              {filter === 'sold'
+                ? 'Scarica un libro venduto scansionandone l’ISBN'
+                : periodActive ? 'Nessun libro letto in questo periodo' : 'Scansiona la copertina di un libro per iniziare'}
             </p>
-            {!periodActive && (
+            {filter === 'sold' ? (
+              <Link
+                href="/app/discharge"
+                className="px-5 py-2.5 rounded-full text-sm font-semibold text-[var(--cream)] transition-all active:scale-95"
+                style={{ background: 'var(--forest)' }}
+              >
+                Scarica una vendita
+              </Link>
+            ) : !periodActive && (
               <Link
                 href="/app/scan"
                 className="px-5 py-2.5 rounded-full text-sm font-semibold text-[var(--cream)] transition-all active:scale-95"

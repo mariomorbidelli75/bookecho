@@ -1,4 +1,4 @@
-export type BookStatus = 'read' | 'reading' | 'to-read' | 'wishlist'
+export type BookStatus = 'read' | 'reading' | 'to-read' | 'wishlist' | 'sold'
 
 export interface Book {
   id: string
@@ -22,6 +22,13 @@ export interface Book {
   readingStartedAt?: string | null
   readingFinishedAt?: string | null
   currentPage?: number | null
+  // Dove il libro è fisicamente archiviato (es. "Libreria salotto, 3ª mensola")
+  location?: string | null
+  // Foto della libreria/scaffale come promemoria visivo (JPEG base64 compresso)
+  locationPhoto?: string | null
+  // Scarico vendita: valore e data di vendita (valorizzati quando status === 'sold')
+  soldPrice?: number | null
+  soldAt?: string | null
   createdAt: string
   updatedAt: string
 }

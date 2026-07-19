@@ -3,12 +3,12 @@ import { useState, useEffect } from 'react'
 import { use } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Star, Headphones, TrendingUp, ShoppingBag, BookOpen, Trash2, Heart, Edit3 } from 'lucide-react'
+import { Star, Headphones, TrendingUp, ShoppingBag, BookOpen, Edit3, MapPin, PackageCheck } from 'lucide-react'
 import { TopBar } from '@/components/TopBar'
 import { ReadingProgress } from '@/components/ReadingProgress'
 import { AuthorBooks } from '@/components/AuthorBooks'
 import type { Book } from '@/types'
-import { cn, formatDate } from '@/lib/utils'
+import { cn, formatDate, formatPrice } from '@/lib/utils'
 import { EMOTIONS } from '@/types'
 import { getBook, updateBook } from '@/lib/storage'
 
@@ -111,10 +111,39 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
         {/* Reading progress */}
         <ReadingProgress book={book} onUpdate={handleReadingUpdate} />
 
+        {/* Venduto — banner scarico vendita */}
+        {book.status === 'sold' && (
+          <div className="p-4 rounded-2xl flex items-center gap-3" style={{ background: 'var(--forest-darker)', color: 'var(--cream)' }}>
+            <PackageCheck size={22} className="flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-xs font-semibold uppercase tracking-wider opacity-70">Venduto</p>
+              <p className="font-serif text-lg font-semibold leading-tight">
+                {book.soldPrice != null ? formatPrice(book.soldPrice) : '—'}
+              </p>
+            </div>
+            {book.soldAt && <p className="text-xs opacity-70">{formatDate(book.soldAt)}</p>}
+          </div>
+        )}
+
         {/* Summary */}
         {book.summary && (
           <div className="p-4 rounded-2xl" style={{ background: 'var(--cream-2)' }}>
             <p className="text-sm leading-relaxed text-[var(--ink-2)]">{book.summary}</p>
+          </div>
+        )}
+
+        {/* Dove si trova — posizione fisica + foto scaffale */}
+        {(book.location || book.locationPhoto) && (
+          <div className="p-4 rounded-2xl" style={{ background: 'var(--cream-2)' }}>
+            <div className="flex items-center gap-2 mb-2">
+              <MapPin size={15} style={{ color: 'var(--forest)' }} />
+              <p className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Dove si trova</p>
+            </div>
+            {book.location && <p className="text-sm font-medium text-[var(--ink)] mb-2">{book.location}</p>}
+            {book.locationPhoto && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={book.locationPhoto} alt="Scaffale" className="w-full rounded-xl object-cover max-h-56" />
+            )}
           </div>
         )}
 
@@ -160,6 +189,17 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
             ))}
           </div>
         </div>
+
+        {/* Scarico vendita — segna il libro come venduto */}
+        {book.status !== 'sold' && (
+          <Link
+            href={`/app/discharge?id=${id}`}
+            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-semibold transition-all active:scale-95 border"
+            style={{ borderColor: 'var(--forest)', color: 'var(--forest)', background: 'var(--cream)' }}
+          >
+            <PackageCheck size={18} /> Segna come venduto
+          </Link>
+        )}
 
         {/* Meta info */}
         <div className="p-4 rounded-2xl space-y-2" style={{ background: 'var(--cream-2)' }}>

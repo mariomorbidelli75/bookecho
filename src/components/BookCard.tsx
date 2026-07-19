@@ -1,8 +1,8 @@
 import Link from 'next/link'
 import Image from 'next/image'
-import { Star, BookOpen, Eye } from 'lucide-react'
+import { Star, BookOpen } from 'lucide-react'
 import type { Book } from '@/types'
-import { cn, readingPercent } from '@/lib/utils'
+import { cn, readingPercent, formatPrice } from '@/lib/utils'
 
 interface BookCardProps {
   book: Book
@@ -14,6 +14,7 @@ const STATUS_BADGE = {
   reading: { label: 'In lettura', className: 'bg-[rgba(232,155,76,0.15)] text-[#B86B1A]' },
   'to-read': { label: 'Da leggere', className: 'bg-[rgba(11,95,165,0.1)] text-[#0B5FA5]' },
   wishlist: { label: 'Lista desideri', className: 'bg-[var(--cream-2)] text-[var(--muted)]' },
+  sold: { label: 'Venduto', className: 'bg-[rgba(30,77,58,0.85)] text-[var(--cream)]' },
 }
 
 export function BookCard({ book, compact = false }: BookCardProps) {
@@ -62,7 +63,11 @@ export function BookCard({ book, compact = false }: BookCardProps) {
               ))}
             </div>
           ) : <span />}
-          {book.marketData && (
+          {book.status === 'sold' && book.soldPrice != null ? (
+            <span className="text-xs font-semibold text-[var(--forest)]">
+              Venduto {formatPrice(book.soldPrice)}
+            </span>
+          ) : book.marketData && (
             <span className="text-xs font-semibold text-[var(--forest)]">
               €{book.marketData.min}–{book.marketData.max}
             </span>

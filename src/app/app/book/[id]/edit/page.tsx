@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { use } from 'react'
 import { useRouter } from 'next/navigation'
-import { Trash2, Camera, Link2 } from 'lucide-react'
+import { Trash2, Camera, Link2, MapPin } from 'lucide-react'
 import { TopBar } from '@/components/TopBar'
 import type { Book, BookStatus } from '@/types'
 import { cn } from '@/lib/utils'
@@ -58,6 +58,7 @@ export default function EditBookPage({ params }: { params: Promise<{ id: string 
   const { id } = use(params)
   const router = useRouter()
   const fileRef = useRef<HTMLInputElement>(null)
+  const shelfRef = useRef<HTMLInputElement>(null)
   const [book, setBook] = useState<Partial<Book>>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -93,6 +94,11 @@ export default function EditBookPage({ params }: { params: Promise<{ id: string 
       setBook(prev => ({ ...prev, cover: coverUrlInput.trim() }))
       setShowUrlInput(false)
     }
+  }
+
+  const handleShelfFile = async (file: File) => {
+    const dataUrl = await compressImage(file)
+    setBook(prev => ({ ...prev, locationPhoto: dataUrl }))
   }
 
   return (
@@ -175,6 +181,57 @@ export default function EditBookPage({ params }: { params: Promise<{ id: string 
           <BookField label="Genere"                   field="genre"          book={book} setBook={setBook} />
           <BookField label="Lingua"                   field="language"       book={book} setBook={setBook} />
           <BookField label="Prezzo di acquisto (€)"   field="purchasePrice"  type="number" book={book} setBook={setBook} />
+
+          {/* Dove è archiviato — posizione fisica + foto dello scaffale */}
+          <div className="p-3 rounded-2xl space-y-3" style={{ background: 'var(--cream-2)', border: '1px solid var(--line)' }}>
+            <div className="flex items-center gap-2">
+              <MapPin size={15} style={{ color: 'var(--forest)' }} />
+              <label className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Dove è archiviato</label>
+            </div>
+            <input
+              type="text"
+              value={book.location ?? ''}
+              onChange={e => setBook(prev => ({ ...prev, location: e.target.value }))}
+              placeholder="Es. Libreria salotto, 3ª mensola"
+              className="w-full px-3 py-2.5 rounded-xl text-sm outline-none"
+              style={{ background: 'var(--cream)', border: '1px solid var(--line)', color: 'var(--ink)' }}
+            />
+            <div className="flex gap-3 items-start">
+              <div className="w-24 h-20 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center" style={{ background: 'var(--cream)' }}>
+                {book.locationPhoto ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={book.locationPhoto} alt="Scaffale" className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-2xl">📚</span>
+                )}
+              </div>
+              <div className="flex-1 space-y-2">
+                <button
+                  onClick={() => { shelfRef.current?.setAttribute('capture', 'environment'); shelfRef.current?.click() }}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold border transition-all active:scale-95"
+                  style={{ borderColor: 'var(--line-2)', background: 'var(--cream)', color: 'var(--ink)' }}
+                >
+                  <Camera size={16} /> Foto scaffale
+                </button>
+                {book.locationPhoto && (
+                  <button
+                    onClick={() => setBook(prev => ({ ...prev, locationPhoto: null }))}
+                    className="w-full flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold border transition-all active:scale-95"
+                    style={{ borderColor: 'var(--line-2)', background: 'var(--cream)', color: 'var(--muted)' }}
+                  >
+                    Rimuovi foto
+                  </button>
+                )}
+              </div>
+            </div>
+            <input
+              ref={shelfRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={e => { const f = e.target.files?.[0]; if (f) handleShelfFile(f); e.target.value = '' }}
+            />
+          </div>
 
           {/* Summary */}
           <div>
