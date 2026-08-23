@@ -22,22 +22,29 @@ function imageBlock(base64Image: string): Anthropic.ImageBlockParam {
   }
 }
 
+// Chiave assente, scaduta o senza credito non devono far fallire la scansione:
+// si torna a mani vuote e il chiamante prosegue con OCR o ricerca manuale.
 export async function identifyBookFromImage(base64Image: string): Promise<Partial<Book>> {
   if (!client) return {}
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: 2048,
-    messages: [{
-      role: 'user',
-      content: [
-        imageBlock(base64Image),
-        { type: 'text', text: `Analizza questa copertina di libro e rispondi SOLO con JSON valido:\n{"title":"...","author":"...","publisher":"...","year":null,"isbn":"...","genre":"...","pages":null,"summary":"...","language":"it"}\nSe non riesci a identificare il libro, usa null per i campi sconosciuti.` }
-      ]
-    }]
-  })
-  const match = textOf(response).match(/\{[\s\S]*\}/)
-  if (!match) return {}
-  try { return JSON.parse(match[0]) } catch { return {} }
+  try {
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: 2048,
+      messages: [{
+        role: 'user',
+        content: [
+          imageBlock(base64Image),
+          { type: 'text', text: `Analizza questa copertina di libro e rispondi SOLO con JSON valido:\n{"title":"...","author":"...","publisher":"...","year":null,"isbn":"...","genre":"...","pages":null,"summary":"...","language":"it"}\nSe non riesci a identificare il libro, usa null per i campi sconosciuti.` }
+        ]
+      }]
+    })
+    const match = textOf(response).match(/\{[\s\S]*\}/)
+    if (!match) return {}
+    return JSON.parse(match[0])
+  } catch (e) {
+    console.error('identifyBookFromImage:', e instanceof Error ? e.message : e)
+    return {}
+  }
 }
 
 export interface SpineBook {
@@ -49,15 +56,16 @@ export interface SpineBook {
 // l'elenco dei volumi riconosciuti (titolo + autore quando leggibile).
 export async function identifyBooksFromShelfImage(base64Image: string): Promise<SpineBook[]> {
   if (!client) return []
-  const response = await client.messages.create({
-    model: MODEL,
-    max_tokens: 4096,
-    thinking: { type: 'adaptive' },
-    messages: [{
-      role: 'user',
-      content: [
-        imageBlock(base64Image),
-        { type: 'text', text: `Questa è la foto di uno scaffale di libri. Leggi i DORSI (e le copertine visibili) e identifica ogni volume distinto.
+  try {
+    const response = await client.messages.create({
+      model: MODEL,
+      max_tokens: 4096,
+      thinking: { type: 'adaptive' },
+      messages: [{
+        role: 'user',
+        content: [
+          imageBlock(base64Image),
+          { type: 'text', text: `Questa è la foto di uno scaffale di libri. Leggi i DORSI (e le copertine visibili) e identifica ogni volume distinto.
 Regole:
 - un elemento per ogni libro fisico visibile, anche se il testo è parzialmente leggibile;
 - correggi errori di lettura evidenti usando la tua conoscenza dei libri realmente esistenti;
@@ -65,18 +73,18 @@ Regole:
 - se l'autore non è leggibile usa null.
 Rispondi SOLO con un array JSON valido, senza testo attorno:
 [{"title":"...","author":"..."}]` }
-      ]
-    }]
-  })
-  const match = textOf(response).match(/\[[\s\S]*\]/)
-  if (!match) return []
-  try {
+        ]
+      }]
+    })
+    const match = textOf(response).match(/\[[\s\S]*\]/)
+    if (!match) return []
     const raw = JSON.parse(match[0])
     if (!Array.isArray(raw)) return []
     return raw
       .filter((b: SpineBook) => b && typeof b.title === 'string' && b.title.trim().length > 1)
       .map((b: SpineBook) => ({ title: b.title.trim(), author: b.author?.trim() || null }))
-  } catch {
+  } catch (e) {
+    console.error('identifyBooksFromShelfImage:', e instanceof Error ? e.message : e)
     return []
   }
 }
