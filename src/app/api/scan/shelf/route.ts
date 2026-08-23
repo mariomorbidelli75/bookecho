@@ -16,6 +16,15 @@ type EnrichedBook = Record<string, unknown> & {
   scannedTitle: string
 }
 
+// Il client la interroga per sapere se la scansione libreria è configurata,
+// così da avvisare prima che l'utente scatti la foto.
+export async function GET() {
+  return NextResponse.json({
+    available: Boolean(process.env.ANTHROPIC_API_KEY || process.env.GOOGLE_CLOUD_VISION_API_KEY),
+    quality: process.env.ANTHROPIC_API_KEY ? 'ai' : process.env.GOOGLE_CLOUD_VISION_API_KEY ? 'ocr' : 'none',
+  })
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { image } = await req.json()

@@ -47,6 +47,7 @@ export default function ScanPage() {
   const [dest, setDest] = useState<Dest>('library')
   const [listPrice, setListPrice] = useState('')
   const [shelfResults, setShelfResults] = useState<ShelfResult[]>([])
+  const [shelfAvailable, setShelfAvailable] = useState<boolean | null>(null)
 
   useEffect(() => {
     setHasBarcode(typeof window !== 'undefined' && 'BarcodeDetector' in window)
@@ -54,6 +55,11 @@ export default function ScanPage() {
     if (new URLSearchParams(window.location.search).get('dest') === 'market') {
       setDest('market')
     }
+    // La scansione libreria richiede una chiave di visione lato server
+    fetch('/api/scan/shelf')
+      .then(r => r.json())
+      .then(d => setShelfAvailable(Boolean(d.available)))
+      .catch(() => setShelfAvailable(null))
   }, [])
 
   const stopCamera = useCallback(() => {
@@ -358,6 +364,11 @@ export default function ScanPage() {
                   ? 'Fotografa lo scaffale con i dorsi ben visibili: riconosco tutti i libri in una volta sola.'
                   : 'Fotografa la copertina o il retro con il codice a barre'}
               </p>
+              {mode === 'shelf' && shelfAvailable === false && (
+                <p className="mt-4 px-4 py-2.5 rounded-xl text-xs max-w-xs" style={{ background: 'rgba(232,155,76,0.18)', color: 'var(--accent-amber-soft)' }}>
+                  Riconoscimento non ancora attivo: serve la chiave <span className="font-mono">ANTHROPIC_API_KEY</span> (o <span className="font-mono">GOOGLE_CLOUD_VISION_API_KEY</span>) nelle variabili d&apos;ambiente del progetto.
+                </p>
+              )}
             </div>
           )
         )}
