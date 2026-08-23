@@ -6,7 +6,7 @@ import { Camera, PackageCheck, AlertCircle, BookOpen, Check } from 'lucide-react
 import { TopBar } from '@/components/TopBar'
 import type { Book } from '@/types'
 import { cn, formatPrice } from '@/lib/utils'
-import { getBooks, getBook, updateBook } from '@/lib/storage'
+import { getLibraryBooks, getBook, updateBook } from '@/lib/storage'
 
 type State = 'scan' | 'form' | 'success' | 'notfound'
 
@@ -50,8 +50,8 @@ export default function DischargePage() {
     stopCamera()
     const clean = onlyDigits(isbn)
     setScannedIsbn(clean)
-    const match = getBooks().find(b => onlyDigits(b.isbn) === clean && b.status !== 'sold')
-      ?? getBooks().find(b => onlyDigits(b.isbn) === clean)
+    const match = getLibraryBooks().find(b => onlyDigits(b.isbn) === clean && b.status !== 'sold')
+      ?? getLibraryBooks().find(b => onlyDigits(b.isbn) === clean)
     if (match) {
       setBook(match)
       setPrice(match.soldPrice != null ? String(match.soldPrice) : '')

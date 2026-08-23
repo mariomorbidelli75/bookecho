@@ -1,15 +1,17 @@
 'use client'
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Camera, Upload, Zap, AlertCircle, Search } from 'lucide-react'
+import { Camera, Upload, Zap, AlertCircle, Search, Library, Store } from 'lucide-react'
 import Image from 'next/image'
 import { TopBar } from '@/components/TopBar'
-import { fileToBase64 } from '@/lib/utils'
+import { ShelfReview, type ShelfResult } from '@/components/ShelfReview'
+import { cn, fileToBase64 } from '@/lib/utils'
 import type { Book } from '@/types'
 import { createBook } from '@/lib/storage'
 
-type ScanState = 'idle' | 'scanning' | 'found' | 'error' | 'manual'
-type ScanMode = 'cover' | 'barcode'
+type ScanState = 'idle' | 'scanning' | 'found' | 'error' | 'manual' | 'shelf-review'
+type ScanMode = 'cover' | 'barcode' | 'shelf'
+type Dest = 'library' | 'market'
 
 declare global {
   interface Window {
@@ -41,8 +43,17 @@ export default function ScanPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [searching, setSearching] = useState(false)
 
+  // Destinazione del libro: libreria personale o mercatino
+  const [dest, setDest] = useState<Dest>('library')
+  const [listPrice, setListPrice] = useState('')
+  const [shelfResults, setShelfResults] = useState<ShelfResult[]>([])
+
   useEffect(() => {
     setHasBarcode(typeof window !== 'undefined' && 'BarcodeDetector' in window)
+    // Arrivando da "+" nel mercatino la destinazione è già impostata
+    if (new URLSearchParams(window.location.search).get('dest') === 'market') {
+      setDest('market')
+    }
   }, [])
 
   const stopCamera = useCallback(() => {
@@ -109,6 +120,32 @@ export default function ScanPage() {
       setError('Impossibile accedere alla fotocamera. Controlla i permessi.')
     }
   }, [hasBarcode, stopCamera, handleIsbn])
+
+  // Scansione libreria: una foto → tanti libri letti dai dorsi
+  const handleShelfImage = useCallback(async (file: File) => {
+    const base64 = await fileToBase64(file)
+    setPreview(base64)
+    setState('scanning')
+    setError('')
+    try {
+      const res = await fetch('/api/scan/shelf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64 }),
+      })
+      const data = await res.json()
+      if (!res.ok || data.error || !data.books?.length) {
+        setState('error')
+        setError(data.error ?? 'Nessun libro riconosciuto nella foto.')
+        return
+      }
+      setShelfResults(data.books)
+      setState('shelf-review')
+    } catch {
+      setState('error')
+      setError('Errore di connessione durante la scansione.')
+    }
+  }, [])
 
   const handleImage = useCallback(async (file: File) => {
     const base64 = await fileToBase64(file)
@@ -204,7 +241,19 @@ export default function ScanPage() {
   const saveBook = () => {
     if (!result) return
     setSaving(true)
-    const book = createBook({ ...result, status: 'read' })
+    if (dest === 'market') {
+      const price = parseFloat(listPrice.replace(',', '.'))
+      const book = createBook({
+        ...result,
+        collection: 'market',
+        status: 'for-sale',
+        listingPrice: isNaN(price) ? null : price,
+        listedAt: new Date().toISOString(),
+      })
+      router.push(`/app/mercatino/${book.id}`)
+      return
+    }
+    const book = createBook({ ...result, collection: 'library', status: 'read' })
     router.push(`/app/book/${book.id}`)
   }
 
@@ -216,6 +265,7 @@ export default function ScanPage() {
     setError('')
     setManualIsbn('')
     setSearchQuery('')
+    setShelfResults([])
     lastIsbnRef.current = ''
   }, [stopCamera])
 
@@ -230,38 +280,67 @@ export default function ScanPage() {
 
       {/* Mode tabs — only shown when idle */}
       {state === 'idle' && (
-        <div className="flex mx-4 mt-1 p-1 rounded-2xl gap-1" style={{ background: 'rgba(255,255,255,0.1)' }}>
-          {(['cover', 'barcode'] as ScanMode[]).map(m => (
-            <button
-              key={m}
-              onClick={() => switchMode(m)}
-              className="flex-1 py-2 rounded-xl text-sm font-semibold transition-all"
-              style={mode === m ? { background: 'var(--accent-amber)', color: 'var(--ink)' } : { color: 'rgba(255,255,255,0.6)' }}
-            >
-              {m === 'cover' ? '📷 Foto copertina' : '📊 ISBN barcode'}
-            </button>
-          ))}
-        </div>
+        <>
+          <div className="flex mx-4 mt-1 p-1 rounded-2xl gap-1" style={{ background: 'rgba(255,255,255,0.1)' }}>
+            {(['cover', 'barcode', 'shelf'] as ScanMode[]).map(m => (
+              <button
+                key={m}
+                onClick={() => switchMode(m)}
+                className="flex-1 py-2 rounded-xl text-xs font-semibold transition-all"
+                style={mode === m ? { background: 'var(--accent-amber)', color: 'var(--ink)' } : { color: 'rgba(255,255,255,0.6)' }}
+              >
+                {m === 'cover' ? '📷 Copertina' : m === 'barcode' ? '📊 ISBN' : '📚 Libreria'}
+              </button>
+            ))}
+          </div>
+
+          {/* Destinazione: libreria personale o mercatino */}
+          <div className="mx-4 mt-3">
+            <p className="text-white/50 text-[11px] mb-1.5">Dove finisce il libro</p>
+            <div className="flex gap-2">
+              {([
+                { value: 'library' as Dest, label: 'La mia libreria', icon: Library },
+                { value: 'market' as Dest, label: 'Il mio mercatino', icon: Store },
+              ]).map(({ value, label, icon: Icon }) => (
+                <button
+                  key={value}
+                  onClick={() => setDest(value)}
+                  className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold transition-all"
+                  style={dest === value
+                    ? { background: 'var(--cream)', color: 'var(--ink)' }
+                    : { background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)' }}
+                >
+                  <Icon size={14} /> {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
       )}
 
       {/* Main area */}
       <div className="flex-1 relative flex items-center justify-center overflow-hidden">
 
-        {/* COVER MODE — preview or viewfinder */}
-        {mode === 'cover' && (
+        {/* COVER / SHELF MODE — preview or viewfinder */}
+        {(mode === 'cover' || mode === 'shelf') && state !== 'shelf-review' && (
           preview ? (
             <div className="relative w-full h-full max-h-[50vh]">
               <Image src={preview} alt="Preview" fill className="object-contain" />
               {state === 'scanning' && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ background: 'rgba(0,0,0,0.55)' }}>
                   <Dots />
-                  <p className="text-white text-sm font-medium mt-2">Analisi in corso…</p>
+                  <p className="text-white text-sm font-medium mt-2">
+                    {mode === 'shelf' ? 'Leggo i dorsi dei libri…' : 'Analisi in corso…'}
+                  </p>
+                  {mode === 'shelf' && (
+                    <p className="text-white/50 text-xs mt-1">Può richiedere qualche secondo</p>
+                  )}
                 </div>
               )}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center p-8 text-center">
-              <div className="relative w-48 h-64 mb-8">
+              <div className={cn('relative mb-8', mode === 'shelf' ? 'w-64 h-40' : 'w-48 h-64')}>
                 <div className="absolute inset-0 rounded-2xl border-2 border-dashed border-white/30" />
                 <Corner pos="top-0 left-0" cls="border-t-2 border-l-2 rounded-tl-lg" />
                 <Corner pos="top-0 right-0" cls="border-t-2 border-r-2 rounded-tr-lg" />
@@ -269,10 +348,16 @@ export default function ScanPage() {
                 <Corner pos="bottom-0 right-0" cls="border-b-2 border-r-2 rounded-br-lg" />
                 <div className="absolute left-0 right-0 h-0.5 animate-scan" style={{ background: 'var(--accent-amber)', boxShadow: '0 0 8px var(--accent-amber)' }} />
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <Camera size={40} className="text-white/40" />
+                  {mode === 'shelf'
+                    ? <span className="text-4xl opacity-50">📚</span>
+                    : <Camera size={40} className="text-white/40" />}
                 </div>
               </div>
-              <p className="text-white/70 text-sm">Fotografa la copertina o il retro con il codice a barre</p>
+              <p className="text-white/70 text-sm max-w-xs">
+                {mode === 'shelf'
+                  ? 'Fotografa lo scaffale con i dorsi ben visibili: riconosco tutti i libri in una volta sola.'
+                  : 'Fotografa la copertina o il retro con il codice a barre'}
+              </p>
             </div>
           )
         )}
@@ -380,15 +465,52 @@ export default function ScanPage() {
               {result.isbn && <p className="text-xs font-mono text-[var(--muted)]">ISBN {result.isbn}</p>}
             </div>
           </div>
+
+          {/* Destinazione */}
+          <div className="flex gap-2 mb-3">
+            {([
+              { value: 'library' as Dest, label: 'Libreria', icon: Library },
+              { value: 'market' as Dest, label: 'Mercatino', icon: Store },
+            ]).map(({ value, label, icon: Icon }) => (
+              <button
+                key={value}
+                onClick={() => setDest(value)}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-semibold transition-all"
+                style={dest === value
+                  ? { background: 'var(--forest)', color: 'var(--cream)' }
+                  : { background: 'var(--cream-2)', color: 'var(--muted)' }}
+              >
+                <Icon size={15} /> {label}
+              </button>
+            ))}
+          </div>
+
+          {dest === 'market' && (
+            <input
+              type="number"
+              inputMode="decimal"
+              value={listPrice}
+              onChange={e => setListPrice(e.target.value)}
+              placeholder="Prezzo di inserzione (€)"
+              className="w-full px-3 py-2.5 rounded-xl text-sm outline-none mb-3"
+              style={{ background: 'var(--cream-2)', border: '1px solid var(--line)', color: 'var(--ink)' }}
+            />
+          )}
+
           <div className="flex gap-2">
             <button onClick={reset} className="flex-1 py-3 rounded-2xl text-sm font-semibold border transition-all active:scale-95" style={{ borderColor: 'var(--line-2)', color: 'var(--ink)' }}>
               Riprova
             </button>
             <button onClick={saveBook} disabled={saving} className="flex-1 py-3 rounded-2xl text-sm font-semibold transition-all active:scale-95" style={{ background: 'var(--forest)', color: 'var(--cream)' }}>
-              {saving ? 'Salvataggio…' : 'Aggiungi alla libreria'}
+              {saving ? 'Salvataggio…' : dest === 'market' ? 'Metti in vendita' : 'Aggiungi alla libreria'}
             </button>
           </div>
         </div>
+      )}
+
+      {/* SHELF REVIEW — libri riconosciuti dalla foto dello scaffale */}
+      {state === 'shelf-review' && (
+        <ShelfReview results={shelfResults} defaultDest={dest} onRetry={reset} />
       )}
 
       {/* MANUAL search panel — shown when automatic recognition fails */}
@@ -448,8 +570,8 @@ export default function ScanPage() {
         </div>
       )}
 
-      {/* Controls — cover mode only */}
-      {mode === 'cover' && state === 'idle' && (
+      {/* Controls — foto copertina e foto scaffale */}
+      {(mode === 'cover' || mode === 'shelf') && state === 'idle' && (
         <div className="p-6 pb-8 flex items-center justify-center gap-8">
           <button
             onClick={() => { if (fileRef.current) { fileRef.current.removeAttribute('capture'); fileRef.current.click() } }}
@@ -479,7 +601,11 @@ export default function ScanPage() {
         type="file"
         accept="image/*"
         className="hidden"
-        onChange={e => { const f = e.target.files?.[0]; if (f) handleImage(f); e.target.value = '' }}
+        onChange={e => {
+          const f = e.target.files?.[0]
+          if (f) (mode === 'shelf' ? handleShelfImage(f) : handleImage(f))
+          e.target.value = ''
+        }}
       />
     </div>
   )

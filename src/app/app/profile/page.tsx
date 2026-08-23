@@ -6,7 +6,7 @@ import Image from 'next/image'
 import { TopBar } from '@/components/TopBar'
 import type { Book } from '@/types'
 import { formatPrice, compressImageSquare } from '@/lib/utils'
-import { getBooks } from '@/lib/storage'
+import { getLibraryBooks } from '@/lib/storage'
 import { getMyName, setMyName, getMyAvatar, setMyAvatar, getFriends } from '@/lib/social'
 
 export default function ProfilePage() {
@@ -18,7 +18,7 @@ export default function ProfilePage() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    setBooks(getBooks())
+    setBooks(getLibraryBooks())
     setName(getMyName())
     setAvatar(getMyAvatar())
     setFriendCount(getFriends().length)

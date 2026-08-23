@@ -14,6 +14,7 @@ const STATUS_BADGE = {
   reading: { label: 'In lettura', className: 'bg-[rgba(232,155,76,0.15)] text-[#B86B1A]' },
   'to-read': { label: 'Da leggere', className: 'bg-[rgba(11,95,165,0.1)] text-[#0B5FA5]' },
   wishlist: { label: 'Lista desideri', className: 'bg-[var(--cream-2)] text-[var(--muted)]' },
+  'for-sale': { label: 'In vendita', className: 'bg-[rgba(232,155,76,0.18)] text-[#B86B1A]' },
   sold: { label: 'Venduto', className: 'bg-[rgba(30,77,58,0.85)] text-[var(--cream)]' },
 }
 

@@ -4,7 +4,7 @@ import { UserPlus, Share2, BookOpen, Repeat, Sparkles, Trash2, Bell, Users } fro
 import { TopBar } from '@/components/TopBar'
 import { cn, formatRelative } from '@/lib/utils'
 import type { Book } from '@/types'
-import { getBooks } from '@/lib/storage'
+import { getLibraryBooks } from '@/lib/storage'
 import {
   getFriends, addFriend, removeFriend, matchScore, swapCandidates,
   isSharing, setSharing, inviteUrl, type Friend,
@@ -18,7 +18,7 @@ export default function FriendsPage() {
 
   useEffect(() => {
     setFriends(getFriends())
-    setBooks(getBooks())
+    setBooks(getLibraryBooks())
     setSharingState(isSharing())
   }, [])
 

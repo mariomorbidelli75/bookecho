@@ -3,14 +3,15 @@ import { useState, useEffect } from 'react'
 import { use } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Star, Headphones, TrendingUp, ShoppingBag, BookOpen, Edit3, MapPin, PackageCheck } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import { Star, Headphones, TrendingUp, ShoppingBag, BookOpen, Edit3, MapPin, PackageCheck, Store } from 'lucide-react'
 import { TopBar } from '@/components/TopBar'
 import { ReadingProgress } from '@/components/ReadingProgress'
 import { AuthorBooks } from '@/components/AuthorBooks'
 import type { Book } from '@/types'
 import { cn, formatDate, formatPrice } from '@/lib/utils'
 import { EMOTIONS } from '@/types'
-import { getBook, updateBook } from '@/lib/storage'
+import { getBook, updateBook, moveToMarket } from '@/lib/storage'
 
 const ACTION_CARDS = [
   { href: 'audio', icon: Headphones, label: 'Trailer Audio', desc: 'Ascolta il riassunto', color: 'var(--forest-darker)', textColor: 'var(--cream)' },
@@ -20,6 +21,7 @@ const ACTION_CARDS = [
 
 export default function BookDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
+  const router = useRouter()
   const [book, setBook] = useState<Book | null>(null)
   const [loading, setLoading] = useState(true)
   const [rating, setRating] = useState(0)
@@ -44,6 +46,13 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
     const next = emotions.includes(e) ? emotions.filter(x => x !== e) : [...emotions, e]
     setEmotions(next)
     updateBook(id, { emotions: next })
+  }
+
+  // Sposta il libro nel mercatino: il prezzo si imposta nella scheda mercatino.
+  const sendToMarket = () => {
+    const suggested = book?.marketData?.avg ?? null
+    moveToMarket(id, suggested)
+    router.push(`/app/mercatino/${id}`)
   }
 
   const handleReadingUpdate = (updates: Partial<Book>) => {
@@ -190,15 +199,24 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
           </div>
         </div>
 
-        {/* Scarico vendita — segna il libro come venduto */}
+        {/* Mercatino e scarico vendita */}
         {book.status !== 'sold' && (
-          <Link
-            href={`/app/discharge?id=${id}`}
-            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-semibold transition-all active:scale-95 border"
-            style={{ borderColor: 'var(--forest)', color: 'var(--forest)', background: 'var(--cream)' }}
-          >
-            <PackageCheck size={18} /> Segna come venduto
-          </Link>
+          <div className="space-y-2">
+            <button
+              onClick={sendToMarket}
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-semibold transition-all active:scale-95"
+              style={{ background: 'var(--accent-amber)', color: 'var(--ink)' }}
+            >
+              <Store size={18} /> Metti nel mercatino
+            </button>
+            <Link
+              href={`/app/discharge?id=${id}`}
+              className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-semibold transition-all active:scale-95 border"
+              style={{ borderColor: 'var(--forest)', color: 'var(--forest)', background: 'var(--cream)' }}
+            >
+              <PackageCheck size={18} /> Segna come venduto
+            </Link>
+          </div>
         )}
 
         {/* Meta info */}

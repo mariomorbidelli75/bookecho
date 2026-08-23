@@ -4,7 +4,7 @@ import Image from 'next/image'
 import { Sparkles, BookOpen, RefreshCw } from 'lucide-react'
 import { TopBar } from '@/components/TopBar'
 import type { Suggestion } from '@/types'
-import { getBooks } from '@/lib/storage'
+import { getLibraryBooks } from '@/lib/storage'
 
 export default function SuggestPage() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
@@ -12,7 +12,7 @@ export default function SuggestPage() {
 
   const load = () => {
     setLoading(true)
-    const books = getBooks()
+    const books = getLibraryBooks()
     fetch('/api/suggest', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

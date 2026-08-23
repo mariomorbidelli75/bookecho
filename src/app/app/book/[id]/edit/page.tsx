@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Trash2, Camera, Link2, MapPin } from 'lucide-react'
 import { TopBar } from '@/components/TopBar'
 import type { Book, BookStatus } from '@/types'
-import { cn } from '@/lib/utils'
+import { cn, compressImage } from '@/lib/utils'
 import { getBook, updateBook, deleteBook } from '@/lib/storage'
 
 // Must live OUTSIDE the page component — if defined inside, every book state
@@ -33,25 +33,6 @@ function BookField({ label, field, type = 'text', book, setBook }: {
       />
     </div>
   )
-}
-
-// Compress image to ≤600px JPEG before storing in localStorage (avoids 5MB limit)
-async function compressImage(file: File): Promise<string> {
-  return new Promise(resolve => {
-    const img = new Image()
-    const url = URL.createObjectURL(file)
-    img.onload = () => {
-      URL.revokeObjectURL(url)
-      const MAX = 600
-      const scale = Math.min(1, MAX / Math.max(img.width, img.height))
-      const canvas = document.createElement('canvas')
-      canvas.width = Math.round(img.width * scale)
-      canvas.height = Math.round(img.height * scale)
-      canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height)
-      resolve(canvas.toDataURL('image/jpeg', 0.82))
-    }
-    img.src = url
-  })
 }
 
 export default function EditBookPage({ params }: { params: Promise<{ id: string }> }) {
@@ -175,6 +156,7 @@ export default function EditBookPage({ params }: { params: Promise<{ id: string 
           <BookField label="Titolo"                   field="title"          book={book} setBook={setBook} />
           <BookField label="Autore"                   field="author"         book={book} setBook={setBook} />
           <BookField label="Editore"                  field="publisher"      book={book} setBook={setBook} />
+          <BookField label="Edizione / collana"       field="edition"        book={book} setBook={setBook} />
           <BookField label="Anno"                     field="year"           type="number" book={book} setBook={setBook} />
           <BookField label="ISBN"                     field="isbn"           book={book} setBook={setBook} />
           <BookField label="Pagine"                   field="pages"          type="number" book={book} setBook={setBook} />

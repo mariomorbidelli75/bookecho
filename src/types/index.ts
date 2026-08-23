@@ -1,4 +1,8 @@
-export type BookStatus = 'read' | 'reading' | 'to-read' | 'wishlist' | 'sold'
+export type BookStatus = 'read' | 'reading' | 'to-read' | 'wishlist' | 'for-sale' | 'sold'
+
+// Dove "vive" il libro: nella libreria personale o nel mercatino (magazzino vendita).
+// I libri del mercatino non compaiono in libreria e viceversa.
+export type Collection = 'library' | 'market'
 
 export interface Book {
   id: string
@@ -29,9 +33,31 @@ export interface Book {
   // Scarico vendita: valore e data di vendita (valorizzati quando status === 'sold')
   soldPrice?: number | null
   soldAt?: string | null
+  // ── Mercatino ────────────────────────────────────────────────────────────
+  // Assente = 'library' (retrocompatibile con i libri già salvati)
+  collection?: Collection
+  // Prezzo a cui il libro è inserzionato nel mercatino
+  listingPrice?: number | null
+  // Quando è stato messo in vendita
+  listedAt?: string | null
+  // Dove è stato venduto (bancarella, fiera, eBay, Vinted…) — alimenta le statistiche
+  soldChannel?: string | null
+  // Edizione / collana (es. "1ª ed. Oscar Mondadori")
+  edition?: string | null
+  // Stato di conservazione del volume
+  condition?: BookCondition | null
   createdAt: string
   updatedAt: string
 }
+
+export const BOOK_CONDITIONS = ['Nuovo', 'Come nuovo', 'Buono', 'Discreto', 'Da riparare'] as const
+export type BookCondition = typeof BOOK_CONDITIONS[number]
+
+// Canali di vendita suggeriti; l'utente può comunque scriverne uno personalizzato.
+export const SALE_CHANNELS = [
+  'Mercatino', 'Fiera del libro', 'Bancarella', 'eBay', 'Vinted',
+  'Subito', 'Amazon', 'Libreria', 'Privato',
+] as const
 
 export interface MarketData {
   min: number

@@ -76,6 +76,28 @@ export function compressImageSquare(file: File, maxPx = 400): Promise<string> {
   })
 }
 
+// Comprime un'immagine mantenendo le proporzioni (lato lungo ≤ maxPx) prima di
+// salvarla in localStorage (evita il limite ~5MB).
+export function compressImage(file: File, maxPx = 600): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(img.width * scale)
+      canvas.height = Math.round(img.height * scale)
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return reject(new Error('no canvas context'))
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      resolve(canvas.toDataURL('image/jpeg', 0.82))
+    }
+    img.onerror = reject
+    img.src = url
+  })
+}
+
 export function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()

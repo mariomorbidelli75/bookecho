@@ -6,7 +6,7 @@ import Image from 'next/image'
 import { BookCard } from '@/components/BookCard'
 import type { Book, BookStatus } from '@/types'
 import { cn } from '@/lib/utils'
-import { getBooks } from '@/lib/storage'
+import { getLibraryBooks } from '@/lib/storage'
 
 const FILTERS: { value: BookStatus | 'all'; label: string }[] = [
   { value: 'all', label: 'Tutti' },
@@ -66,7 +66,8 @@ export default function LibraryPage() {
   const [to, setTo] = useState('')
 
   useEffect(() => {
-    setBooks(getBooks())
+    // Solo la libreria personale: i libri del mercatino hanno la loro sezione
+    setBooks(getLibraryBooks())
     setLoading(false)
     // Apertura diretta sulla vista Venduti (dopo uno scarico vendita)
     if (new URLSearchParams(window.location.search).get('filter') === 'sold') {
