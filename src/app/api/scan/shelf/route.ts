@@ -40,7 +40,8 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 1. Claude Vision: legge i dorsi (richiede ANTHROPIC_API_KEY) ─────────
-    let spines: SpineBook[] = await identifyBooksFromShelfImage(image)
+    const reading = await identifyBooksFromShelfImage(image)
+    let spines: SpineBook[] = reading.books
     let source: 'claude' | 'ocr' = 'claude'
 
     // ── 2. Fallback OCR Google Vision: ogni riga di testo è un candidato ─────
@@ -53,6 +54,10 @@ export async function POST(req: NextRequest) {
     }
 
     if (spines.length === 0) {
+      // Se Claude ha fallito e non c'è OCR di riserva, spiega il vero motivo
+      if (reading.error) {
+        return NextResponse.json({ error: reading.error }, { status: 503 })
+      }
       return NextResponse.json(
         { error: 'Nessun libro riconosciuto nella foto. Prova con più luce, avvicinandoti ai dorsi.' },
         { status: 422 }

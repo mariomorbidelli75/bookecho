@@ -54,8 +54,15 @@ export interface SpineBook {
 
 // Legge i dorsi dei libri da una foto di uno scaffale/libreria e restituisce
 // l'elenco dei volumi riconosciuti (titolo + autore quando leggibile).
-export async function identifyBooksFromShelfImage(base64Image: string): Promise<SpineBook[]> {
-  if (!client) return []
+export interface ShelfReading {
+  books: SpineBook[]
+  // Valorizzato solo se la chiamata è fallita (chiave, credito, rete):
+  // permette al chiamante di spiegare il motivo invece di dire "nessun libro".
+  error?: string
+}
+
+export async function identifyBooksFromShelfImage(base64Image: string): Promise<ShelfReading> {
+  if (!client) return { books: [] }
   try {
     const response = await client.messages.create({
       model: MODEL,
@@ -77,16 +84,36 @@ Rispondi SOLO con un array JSON valido, senza testo attorno:
       }]
     })
     const match = textOf(response).match(/\[[\s\S]*\]/)
-    if (!match) return []
+    if (!match) return { books: [] }
     const raw = JSON.parse(match[0])
-    if (!Array.isArray(raw)) return []
-    return raw
-      .filter((b: SpineBook) => b && typeof b.title === 'string' && b.title.trim().length > 1)
-      .map((b: SpineBook) => ({ title: b.title.trim(), author: b.author?.trim() || null }))
+    if (!Array.isArray(raw)) return { books: [] }
+    return {
+      books: raw
+        .filter((b: SpineBook) => b && typeof b.title === 'string' && b.title.trim().length > 1)
+        .map((b: SpineBook) => ({ title: b.title.trim(), author: b.author?.trim() || null })),
+    }
   } catch (e) {
     console.error('identifyBooksFromShelfImage:', e instanceof Error ? e.message : e)
-    return []
+    return { books: [], error: describeAnthropicError(e) }
   }
+}
+
+// Traduce gli errori dell'API in un messaggio comprensibile all'utente.
+function describeAnthropicError(e: unknown): string {
+  if (e instanceof Anthropic.AuthenticationError) {
+    return 'Chiave Anthropic non valida: controlla ANTHROPIC_API_KEY.'
+  }
+  if (e instanceof Anthropic.RateLimitError) {
+    return 'Troppe richieste ad Anthropic in poco tempo: riprova tra un minuto.'
+  }
+  if (e instanceof Anthropic.APIError) {
+    const msg = String(e.message)
+    if (/credit balance/i.test(msg)) {
+      return 'Credito Anthropic esaurito: ricarica su console.anthropic.com → Plans & Billing.'
+    }
+    return `Errore Anthropic (${e.status}): ${msg}`
+  }
+  return 'Servizio di riconoscimento non raggiungibile.'
 }
 
 export async function generateBookSummary(title: string, author: string): Promise<string | null> {
