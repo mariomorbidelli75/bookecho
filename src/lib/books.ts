@@ -111,20 +111,32 @@ function mapOpenLibraryBook(ol: OpenLibraryBook, isbn: string): Record<string, u
   return { title: ol.title, author, isbn, publisher, year, cover, summary, pages, genre, language: langKey }
 }
 
-export async function searchGoogleBooks(query: string): Promise<GoogleBook[]> {
+// Google Books risponde 429/503 quando riceve molte richieste ravvicinate
+// (tipico della scansione scaffale): riprova con una breve attesa crescente.
+export async function searchGoogleBooks(query: string, retries = 2): Promise<GoogleBook[]> {
   const apiKey = process.env.GOOGLE_BOOKS_API_KEY
   const params = new URLSearchParams({ q: query, maxResults: '5' })
   if (apiKey) params.append('key', apiKey)
+  const url = `https://www.googleapis.com/books/v1/volumes?${params}`
 
-  try {
-    const res = await fetch(`https://www.googleapis.com/books/v1/volumes?${params}`)
-    if (!res.ok) return []
-    const data = await res.json()
-    return data.items ?? []
-  } catch {
-    return []
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch(url)
+      if (res.ok) {
+        const data = await res.json()
+        return data.items ?? []
+      }
+      // 4xx diversi da 429 non migliorano riprovando
+      if (res.status !== 429 && res.status < 500) return []
+    } catch {
+      // errore di rete: rientra nel ciclo di retry
+    }
+    if (attempt < retries) await sleep(400 * (attempt + 1))
   }
+  return []
 }
+
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms))
 
 export async function getBookByIsbn(isbn: string): Promise<GoogleBook | null> {
   const results = await searchGoogleBooks(`isbn:${isbn}`)

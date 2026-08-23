@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { identifyBooksFromShelfImage, type SpineBook } from '@/lib/ai'
-import { searchGoogleBooks, mapGoogleBook } from '@/lib/books'
+import { searchGoogleBooks, mapGoogleBook, type GoogleBook } from '@/lib/books'
 
 // Riconoscimento di più libri da una foto di scaffale: può richiedere
 // parecchi secondi tra visione e arricchimento su Google Books.
@@ -65,30 +65,33 @@ export async function POST(req: NextRequest) {
     }
 
     // ── 3. Arricchimento su Google Books (copertina, ISBN, editore, anno) ────
-    const enriched: EnrichedBook[] = await Promise.all(
-      spines.slice(0, MAX_BOOKS).map(async (spine): Promise<EnrichedBook> => {
-        const query = `${spine.title} ${spine.author ?? ''}`.trim()
-        try {
-          const results = await searchGoogleBooks(query)
-          if (results.length > 0) {
-            const data = mapGoogleBook(results[0])
-            return {
-              ...data,
-              // Il titolo letto dal dorso resta come fallback se Google Books non risponde
-              title: (data.title as string) || spine.title,
-              author: (data.author as string) || spine.author || 'Autore sconosciuto',
-              matched: true,
-              scannedTitle: spine.title,
-            }
-          }
-        } catch {}
-        return {
+    // Poche richieste per volta: in parallelo Google Books risponde 503.
+    const enriched: EnrichedBook[] = await mapWithConcurrency(
+      spines.slice(0, MAX_BOOKS),
+      3,
+      async (spine): Promise<EnrichedBook> => {
+        const fallback: EnrichedBook = {
           title: spine.title,
           author: spine.author ?? 'Autore sconosciuto',
           matched: false,
           scannedTitle: spine.title,
         }
-      })
+        try {
+          const results = await searchGoogleBooks(`${spine.title} ${spine.author ?? ''}`.trim())
+          const best = pickBestMatch(spine, results)
+          if (!best) return fallback
+          const data = mapGoogleBook(best)
+          return {
+            ...data,
+            title: (data.title as string) || spine.title,
+            author: (data.author as string) || spine.author || 'Autore sconosciuto',
+            matched: true,
+            scannedTitle: spine.title,
+          }
+        } catch {
+          return fallback
+        }
+      }
     )
 
     // Deduplica per ISBN, altrimenti per titolo normalizzato
@@ -105,6 +108,75 @@ export async function POST(req: NextRequest) {
     console.error('Shelf scan error:', e)
     return NextResponse.json({ error: 'Scansione non riuscita' }, { status: 500 })
   }
+}
+
+// Esegue `fn` su tutti gli elementi con al massimo `limit` richieste contemporanee,
+// preservando l'ordine dei risultati.
+async function mapWithConcurrency<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const out = new Array<R>(items.length)
+  let next = 0
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (next < items.length) {
+      const i = next++
+      out[i] = await fn(items[i])
+    }
+  })
+  await Promise.all(workers)
+  return out
+}
+
+// Parole troppo comuni per distinguere un titolo da un altro.
+const STOPWORDS = new Set([
+  'the', 'and', 'for', 'with', 'from', 'der', 'die', 'das', 'den', 'dem', 'und', 'ihre', 'ihr',
+  'des', 'ein', 'eine', 'von', 'zur', 'zum', 'für', 'fur', 'les', 'des', 'une', 'dans',
+  'del', 'della', 'delle', 'dei', 'degli', 'con', 'per', 'nel', 'nella', 'una', 'gli',
+])
+
+function contentTokens(s: string): Set<string> {
+  const words = s
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/\p{M}/gu, '')       // via gli accenti: "für" → "fur", non "fu r"
+    .replace(/[^a-z0-9]+/g, ' ')
+    .split(' ')
+    .filter(w => w.length > 2 && !STOPWORDS.has(w))
+  return new Set(words)
+}
+
+// Sceglie il risultato che descrive davvero il libro letto sul dorso.
+// Senza questo controllo Google Books restituisce il primo risultato qualunque
+// esso sia, e un dorso non trovato finisce abbinato a un libro sbagliato.
+function pickBestMatch(spine: SpineBook, results: GoogleBook[]): GoogleBook | null {
+  const scanned = contentTokens(spine.title)
+  if (scanned.size === 0) return null
+  const scannedAuthor = spine.author ? contentTokens(spine.author) : null
+
+  let best: { book: GoogleBook; score: number } | null = null
+
+  for (const gb of results) {
+    const candidate = contentTokens(gb.volumeInfo.title ?? '')
+    if (candidate.size === 0) continue
+
+    let overlap = 0
+    for (const t of scanned) if (candidate.has(t)) overlap++
+    if (overlap === 0) continue
+
+    const coverage = overlap / scanned.size       // quanto del dorso è ritrovato
+    const precision = overlap / candidate.size    // quanto il candidato è pertinente
+    let score = 0.7 * coverage + 0.3 * precision
+
+    // Bonus se anche l'autore letto sul dorso compare tra quelli del candidato
+    if (scannedAuthor?.size) {
+      const authors = contentTokens((gb.volumeInfo.authors ?? []).join(' '))
+      for (const t of scannedAuthor) {
+        if (authors.has(t)) { score += 0.15; break }
+      }
+    }
+
+    if (!best || score > best.score) best = { book: gb, score }
+  }
+
+  return best && best.score >= 0.55 ? best.book : null
 }
 
 // OCR gratuito (1000 richieste/mese) usato quando manca la chiave Anthropic.
