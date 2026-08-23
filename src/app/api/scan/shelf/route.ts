@@ -77,8 +77,12 @@ export async function POST(req: NextRequest) {
           scannedTitle: spine.title,
         }
         try {
-          const results = await searchGoogleBooks(`${spine.title} ${spine.author ?? ''}`.trim())
-          const best = pickBestMatch(spine, results)
+          let best = pickBestMatch(spine, await searchGoogleBooks(`${spine.title} ${spine.author ?? ''}`.trim()))
+          // Secondo tentativo mirato solo sui titoli non trovati: la ricerca
+          // libera con l'autore a volte manca edizioni accademiche o straniere.
+          if (!best) {
+            best = pickBestMatch(spine, await searchGoogleBooks(`intitle:"${spine.title}"`))
+          }
           if (!best) return fallback
           const data = mapGoogleBook(best)
           return {
@@ -165,11 +169,17 @@ function pickBestMatch(spine: SpineBook, results: GoogleBook[]): GoogleBook | nu
     const precision = overlap / candidate.size    // quanto il candidato è pertinente
     let score = 0.7 * coverage + 0.3 * precision
 
-    // Bonus se anche l'autore letto sul dorso compare tra quelli del candidato
+    // Confronto autori: bonus se coincidono, esclusione se sono entrambi noti
+    // e diversi — è il caso dei titoli omonimi di autori diversi.
     if (scannedAuthor?.size) {
       const authors = contentTokens((gb.volumeInfo.authors ?? []).join(' '))
-      for (const t of scannedAuthor) {
-        if (authors.has(t)) { score += 0.15; break }
+      if (authors.size > 0) {
+        let sameAuthor = false
+        for (const t of scannedAuthor) {
+          if (authors.has(t)) { sameAuthor = true; break }
+        }
+        if (!sameAuthor) continue
+        score += 0.15
       }
     }
 
