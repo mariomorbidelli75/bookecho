@@ -79,23 +79,53 @@ function googleParams(extra: Record<string, string>): URLSearchParams {
 
 // Google Books risponde 429/503 a raffica quando riceve richieste ravvicinate
 // (tipico della scansione scaffale): si riprova con attese crescenti.
+// Google Books espone la stessa API su due host. Misurato dai server Vercel
+// (ago 2026): ~2 richieste su 3 tornano 503, e capita anche un 200 con zero
+// risultati per un ISBN che esiste. I due host però non falliscono insieme,
+// quindi si alternano a ogni tentativo: è la differenza tra una scheda piena e
+// una vuota quando l'app gira in cloud e non sul portatile di casa.
+const GOOGLE_HOSTS = ['www.googleapis.com', 'books.googleapis.com']
+
+// Cache in memoria delle ricerche riuscite: la stessa funzione viene riusata
+// tra richieste vicine (scansione di uno scaffale, un secondo tentativo
+// dell'utente) e ogni chiamata risparmiata è una chiamata che non può fallire.
+const searchCache = new Map<string, { items: GoogleBook[]; at: number }>()
+const CACHE_TTL = 10 * 60 * 1000
+const CACHE_MAX = 300
+
 // `failed` distingue "il libro non c'è" da "il servizio non ha risposto": senza
 // questa differenza una scheda restava vuota senza che nessuno sapesse perché.
-export async function searchGoogleBooksDetailed(query: string, retries = 3): Promise<{ items: GoogleBook[]; failed: boolean }> {
-  const url = `https://www.googleapis.com/books/v1/volumes?${googleParams({ q: query, maxResults: '5' })}`
+export async function searchGoogleBooksDetailed(query: string, retries = 4): Promise<{ items: GoogleBook[]; failed: boolean }> {
+  const cached = searchCache.get(query)
+  if (cached && Date.now() - cached.at < CACHE_TTL) return { items: cached.items, failed: false }
+
+  // Una risposta 200 ma vuota può essere autentica ("questo ISBN non esiste")
+  // oppure l'ennesimo capriccio del servizio: si ritenta, e se almeno una
+  // risposta pulita è arrivata la si prende per buona.
+  let cleanEmpty = false
 
   for (let attempt = 0; attempt <= retries; attempt++) {
+    const host = GOOGLE_HOSTS[attempt % GOOGLE_HOSTS.length]
     try {
-      const res = await fetch(url)
-      if (res.ok) return { items: (await res.json()).items ?? [], failed: false }
-      // 4xx diversi da 429 non migliorano riprovando (chiave errata, query rotta)
-      if (res.status !== 429 && res.status < 500) return { items: [], failed: true }
+      const res = await fetch(`https://${host}/books/v1/volumes?${googleParams({ q: query, maxResults: '5' })}`)
+      if (res.ok) {
+        const items: GoogleBook[] = (await res.json()).items ?? []
+        if (items.length > 0) {
+          if (searchCache.size >= CACHE_MAX) searchCache.clear()
+          searchCache.set(query, { items, at: Date.now() })
+          return { items, failed: false }
+        }
+        cleanEmpty = true
+      } else if (res.status !== 429 && res.status < 500) {
+        // 4xx diversi da 429 non migliorano riprovando (chiave errata, query rotta)
+        return { items: [], failed: true }
+      }
     } catch {
       // errore di rete: rientra nel ciclo di retry
     }
-    if (attempt < retries) await sleep(500 * (attempt + 1))
+    if (attempt < retries) await sleep(400 * (attempt + 1))
   }
-  return { items: [], failed: true }
+  return { items: [], failed: !cleanEmpty }
 }
 
 export async function searchGoogleBooks(query: string, retries = 3): Promise<GoogleBook[]> {
@@ -104,15 +134,15 @@ export async function searchGoogleBooks(query: string, retries = 3): Promise<Goo
 
 // Scheda completa del volume: è QUI che stanno descrizione lunga e copertine
 // ad alta risoluzione, non nei risultati di ricerca.
-export async function fetchGoogleVolume(volumeId: string, retries = 2): Promise<GoogleBook | null> {
-  const url = `https://www.googleapis.com/books/v1/volumes/${volumeId}?${googleParams({})}`
+export async function fetchGoogleVolume(volumeId: string, retries = 3): Promise<GoogleBook | null> {
   for (let attempt = 0; attempt <= retries; attempt++) {
+    const host = GOOGLE_HOSTS[attempt % GOOGLE_HOSTS.length]
     try {
-      const res = await fetch(url)
+      const res = await fetch(`https://${host}/books/v1/volumes/${volumeId}?${googleParams({})}`)
       if (res.ok) return await res.json() as GoogleBook
       if (res.status !== 429 && res.status < 500) return null
     } catch {}
-    if (attempt < retries) await sleep(500 * (attempt + 1))
+    if (attempt < retries) await sleep(400 * (attempt + 1))
   }
   return null
 }
@@ -527,14 +557,20 @@ export async function searchByAuthor(author: string, excludeTitle = '', limit = 
     langRestrict: 'it',
   })
 
+  // Anche qui i due host si alternano: uno dei due di solito risponde.
   let items: GoogleBook[] = []
-  try {
-    const res = await fetch(`https://www.googleapis.com/books/v1/volumes?${params}`, {
-      next: { revalidate: 86400 },
-    } as RequestInit)
-    if (res.ok) items = (await res.json()).items ?? []
-  } catch {
-    return []
+  for (const host of GOOGLE_HOSTS) {
+    try {
+      const res = await fetch(`https://${host}/books/v1/volumes?${params}`, {
+        next: { revalidate: 86400 },
+      } as RequestInit)
+      if (res.ok) {
+        items = (await res.json()).items ?? []
+        if (items.length > 0) break
+      }
+    } catch {
+      // si prova l'host successivo
+    }
   }
 
   const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
