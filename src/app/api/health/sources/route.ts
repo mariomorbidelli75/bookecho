@@ -74,13 +74,26 @@ export async function GET() {
 
     probe('Google Vision (OCR di riserva)', Boolean(process.env.GOOGLE_CLOUD_VISION_API_KEY), async () => null),
 
+    // Si prova proprio la sintesi vocale, non il profilo utente: le chiavi
+    // ElevenLabs sono a permessi separati e una chiave può benissimo saper
+    // parlare senza poter leggere l'anagrafica dell'account.
     probe('ElevenLabs (voce)', Boolean(process.env.ELEVENLABS_API_KEY), async () => {
-      const res = await fetch('https://api.elevenlabs.io/v1/user/subscription', {
-        headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY ?? '' },
-        signal: AbortSignal.timeout(12000),
+      const voiceId = process.env.ELEVENLABS_VOICE_ID ?? '21m00Tcm4TlvDq8ikWAM'
+      const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+        method: 'POST',
+        headers: { 'xi-api-key': process.env.ELEVENLABS_API_KEY ?? '', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: 'Prova.', model_id: 'eleven_multilingual_v2' }),
+        signal: AbortSignal.timeout(20000),
       })
-      if (res.status === 401) return 'chiave non valida'
-      return res.ok ? null : `HTTP ${res.status}`
+      if (res.ok) return null
+      const detail = await res.text()
+      if (res.status === 401) {
+        return /permission/i.test(detail)
+          ? 'la chiave non ha il permesso text_to_speech'
+          : 'chiave non valida'
+      }
+      if (res.status === 429) return 'quota esaurita'
+      return `HTTP ${res.status}`
     }),
   ])
 
