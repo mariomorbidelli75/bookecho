@@ -15,6 +15,7 @@ type ScanResultData = Partial<Book> & {
   sources?: Record<string, string>
   missing?: string[]
   warning?: string
+  fromCache?: boolean
 }
 
 const SOURCE_LABELS: Record<string, string> = {
@@ -271,8 +272,11 @@ export default function ScanPage() {
 
     // I campi di servizio della risposta (provenienza, campi mancanti) non
     // vanno in archivio: resta solo la fonte della trama, che va dichiarata.
-    const { sources, missing: _missing, found: _found, confidence: _confidence, ...clean } =
-      result as Partial<Book> & { sources?: Record<string, string>; missing?: string[]; found?: boolean; confidence?: number }
+    const { sources, missing: _missing, found: _found, confidence: _confidence, warning: _warning, fromCache: _fromCache, ...clean } =
+      result as Partial<Book> & {
+        sources?: Record<string, string>; missing?: string[]
+        found?: boolean; confidence?: number; warning?: string; fromCache?: boolean
+      }
 
     const data: Partial<Book> = { ...clean }
     if (sources?.summary) data.summarySource = sources.summary as Book['summarySource']

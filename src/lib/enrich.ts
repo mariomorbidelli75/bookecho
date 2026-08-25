@@ -4,6 +4,7 @@ import {
   fetchWikipedia, isUsableImage, looksLikePlaceholder, titlesAgree, type SourceBook,
 } from './books'
 import { generateBookSummary } from './ai'
+import { readSheet, writeSheet, worthCaching } from './book-cache'
 
 // Da dove arriva ogni campo della scheda. Serve a due cose: mostrarlo
 // all'utente (una trama scritta dall'AI non è una trama d'editore) e capire,
@@ -52,6 +53,8 @@ export interface EnrichResult extends SourceBook {
   // Valorizzato quando una fonte non ha risposto: la scheda è incompleta per
   // un problema temporaneo, non perché il libro non esista.
   warning?: string
+  // La scheda arriva dall'archivio: nessuna fonte è stata interrogata.
+  fromCache?: boolean
 }
 
 const cleanIsbn = (isbn?: string | null) => {
@@ -86,6 +89,20 @@ function cleanText(text?: string | null): string | null {
 export async function enrichBook(seed: EnrichSeed, opts: EnrichOptions = {}): Promise<EnrichResult> {
   const { level = 'full', photo = null, allowAi = false } = opts
   const sources: EnrichResult['sources'] = {}
+
+  // ── 0. Archivio: se questa scheda è già stata ricostruita, è finita qui ──
+  // Vale per tutti gli utenti: un libro cercato una volta non dipende più
+  // dalle fonti esterne, che dai server rispondono a singhiozzo.
+  const cached = await readSheet(seed, level)
+  if (cached) {
+    const hit = { ...(cached as unknown as EnrichResult), fromCache: true }
+    // La copertina di ripiego è personale: non arriva mai dall'archivio.
+    if (!hit.cover && photo) {
+      hit.cover = photo
+      hit.sources = { ...hit.sources, cover: 'photo' }
+    }
+    return hit
+  }
 
   // ── 1. Chi è questo libro, secondo Google Books ──────────────────────────
   const search = await findGoogleVolume(seed)
@@ -226,6 +243,13 @@ export async function enrichBook(seed: EnrichSeed, opts: EnrichOptions = {}): Pr
 
   result.missing = (['cover', 'summary', 'publisher', 'year', 'isbn', 'pages', 'genre'] as const)
     .filter(k => result[k] == null)
+
+  // Nell'archivio va la scheda "pubblica": la copertina di ripiego presa dalla
+  // foto dell'utente resta nella sua libreria e non viene condivisa.
+  if (worthCaching(result)) {
+    const { warning: _warning, fromCache: _fromCache, ...sheet } = result
+    await writeSheet(sheet as unknown as Record<string, unknown>, level)
+  }
 
   return result
 }

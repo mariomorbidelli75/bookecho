@@ -14,6 +14,8 @@ export interface ShelfResult extends Partial<Book> {
   // non finiscono in archivio.
   sources?: Record<string, string>
   missing?: string[]
+  warning?: string
+  fromCache?: boolean
 }
 
 type Dest = 'library' | 'market'
@@ -57,7 +59,7 @@ export function ShelfReview({ results, defaultDest, onRetry }: {
 
     results.forEach((r, i) => {
       if (!selected.has(i)) return
-      const { matched: _matched, scannedTitle: _scannedTitle, sources, missing: _missing, ...data } = r
+      const { matched: _matched, scannedTitle: _scannedTitle, sources, missing: _missing, warning: _warning, fromCache: _fromCache, ...data } = r
       createBook({
         ...data,
         summarySource: (sources?.summary as Book['summarySource']) ?? null,

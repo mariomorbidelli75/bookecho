@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { searchGoogleBooksDetailed } from '@/lib/books'
+import { cacheStatus } from '@/lib/book-cache'
 
 // Stato delle fonti da cui dipendono copertine e trame.
 // Quando una scheda resta vuota la domanda è sempre la stessa: è il libro che
@@ -129,8 +130,11 @@ export async function GET() {
 
   const essenziali = checks.filter(c => ['Google Books', 'Open Library', 'Wikipedia'].includes(c.fonte))
   return NextResponse.json({
+    // L'archivio delle schede è la vera rete di sicurezza: finché regge, un
+    // catalogo muto non si vede nemmeno.
     stato: essenziali.every(c => c.ok) ? 'ok' : essenziali.some(c => c.ok) ? 'degradato' : 'ko',
     verificato: new Date().toISOString(),
+    archivioSchede: cacheStatus(),
     fonti: checks,
     googleVarianti: varianti,
   })
