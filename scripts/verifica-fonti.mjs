@@ -34,7 +34,7 @@ for (const isbn of ISBN) {
     if (j.cover && j.summary) both++
     const cov = j.cover ? (j.sources?.cover ?? 'si') : 'NESSUNA'
     const sum = j.summary ? `${String(j.summary.length).padStart(4)}ch ${j.sources?.summary ?? ''}` : 'NESSUNA'
-    console.log(`${isbn} → ${String(j.title).slice(0, 32).padEnd(32)} cop:${cov.padEnd(12)} trama:${sum}${j.warning ? '  ⚠ ' + j.warning : ''}`)
+    console.log(`${isbn} ${j.fromCache ? 'ARCH' : 'font'} ${String(j.title).slice(0, 30).padEnd(30)} cop:${cov.padEnd(12)} trama:${sum}${j.warning ? '  ⚠ ' + j.warning : ''}`)
   } catch (e) {
     console.log(`${isbn} → errore ${e.name}`)
   }
