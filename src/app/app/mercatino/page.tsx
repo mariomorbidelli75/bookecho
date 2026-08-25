@@ -100,7 +100,7 @@ export default function MercatinoPage() {
           </div>
           <Link href="/app/mercatino/stats" className="p-3 rounded-2xl transition-all active:scale-95" style={{ background: 'var(--forest)', color: 'var(--cream)' }}>
             <p className="text-[10px] font-semibold uppercase tracking-wider opacity-70 flex items-center gap-1">
-              <BarChart3 size={11} /> Incassato
+              <BarChart3 size={11} /> Incassato · cruscotto
             </p>
             <p className="font-serif text-lg font-semibold">{formatPrice(revenue)}</p>
           </Link>
