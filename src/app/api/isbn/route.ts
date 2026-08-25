@@ -15,6 +15,11 @@ export async function GET(req: NextRequest) {
   const book = await enrichBook({ isbn: clean }, { level: 'full', allowAi: true })
 
   if (!book.matched && !book.summary) {
+    // "Non risponde" e "non esiste" sono due risposte diverse e vanno dette
+    // come tali: nel primo caso riprovare ha senso, nel secondo no.
+    if (book.warning) {
+      return NextResponse.json({ error: book.warning }, { status: 503 })
+    }
     return NextResponse.json({ error: `ISBN ${clean} non trovato nei cataloghi.` }, { status: 404 })
   }
 
