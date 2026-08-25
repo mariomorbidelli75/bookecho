@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { searchGoogleBooksDetailed } from '@/lib/books'
 
 // Stato delle fonti da cui dipendono copertine e trame.
 // Quando una scheda resta vuota la domanda è sempre la stessa: è il libro che
@@ -31,17 +32,20 @@ export async function GET() {
   const ISBN = '9788806219352'
 
   const checks = await Promise.all([
+    // Si usa la stessa funzione dell'app, con rotazione degli host e
+    // ritentativi: quello che conta è se l'app riesce a leggere il catalogo,
+    // non se la singola chiamata è andata a buon fine (la riga `googleVarianti`
+    // qui sotto mostra comunque come rispondono i due host in questo momento).
     probe('Google Books', true, async () => {
-      const key = process.env.GOOGLE_BOOKS_API_KEY
-      const url = `https://www.googleapis.com/books/v1/volumes?q=isbn:${ISBN}${key ? `&key=${key}` : ''}`
-      const res = await fetch(url, { signal: AbortSignal.timeout(12000) })
-      if (!res.ok) {
-        const detail = res.status === 400 ? 'chiave rifiutata' : res.status === 429 ? 'quota esaurita' : 'servizio non disponibile'
-        return `HTTP ${res.status} — ${detail}${key ? '' : ' (nessuna chiave: si usa la quota pubblica condivisa)'}`
+      const { items, failed } = await searchGoogleBooksDetailed(`isbn:${ISBN}`)
+      if (items.length > 0) {
+        return process.env.GOOGLE_BOOKS_API_KEY
+          ? null
+          : 'funziona, ma senza chiave la quota pubblica si esaurisce in fretta'
       }
-      const items = (await res.json()).items ?? []
-      if (items.length === 0) return 'risposta vuota per un ISBN che esiste'
-      return key ? null : 'funziona ma senza chiave: la quota pubblica va in 429 con poche richieste'
+      return failed
+        ? 'nessuno dei due host ha risposto dopo cinque tentativi'
+        : 'risposta vuota per un ISBN che esiste'
     }),
 
     probe('Open Library', true, async () => {
@@ -92,6 +96,7 @@ export async function GET() {
           ? 'la chiave non ha il permesso text_to_speech'
           : 'chiave non valida'
       }
+      if (res.status === 402) return 'credito esaurito: ricarica su elevenlabs.io'
       if (res.status === 429) return 'quota esaurita'
       return `HTTP ${res.status}`
     }),
