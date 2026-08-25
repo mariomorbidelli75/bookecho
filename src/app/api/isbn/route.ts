@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { lookupByIsbn, fetchWikipediaSummary } from '@/lib/books'
+import { enrichBook } from '@/lib/enrich'
 
 export async function GET(req: NextRequest) {
   const isbn = req.nextUrl.searchParams.get('isbn')
@@ -10,17 +10,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'ISBN non valido' }, { status: 400 })
   }
 
-  const book = await lookupByIsbn(clean)
-  if (!book) return NextResponse.json({ error: 'Libro non trovato' }, { status: 404 })
+  // Catalogo → Open Library → Wikipedia → sintesi AI: la scheda si costruisce
+  // scendendo di fonte in fonte finché i campi non sono pieni.
+  const book = await enrichBook({ isbn: clean }, { level: 'full', allowAi: true })
 
-  // If no summary from OL or Google Books, try Wikipedia (completely free)
-  if (!book.summary && book.title && book.author) {
-    const wikiSummary = await fetchWikipediaSummary(
-      book.title as string,
-      book.author as string
-    )
-    if (wikiSummary) book.summary = wikiSummary
+  if (!book.matched && !book.summary) {
+    return NextResponse.json({ error: `ISBN ${clean} non trovato nei cataloghi.` }, { status: 404 })
   }
 
-  return NextResponse.json({ ...book, found: true, confidence: 0.95 })
+  return NextResponse.json({ ...book, found: true, confidence: book.matched ? 0.95 : 0.6 })
 }

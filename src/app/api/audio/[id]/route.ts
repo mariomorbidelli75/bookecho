@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateAudioScript } from '@/lib/ai'
 import { generateAudio } from '@/lib/audio'
-import { fetchWikipediaSummary } from '@/lib/books'
+import { fetchWikipedia } from '@/lib/books'
 import type { Book } from '@/types'
 
 export const maxDuration = 60
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     let enrichedBook = book
     let fetchedSummary: string | undefined
     if ((!book.summary || book.summary.length < 100) && book.title && book.author) {
-      const wikiSummary = await fetchWikipediaSummary(book.title, book.author)
+      const wikiSummary = (await fetchWikipedia(book.title, book.author))?.extract ?? null
       if (wikiSummary) {
         fetchedSummary = wikiSummary
         enrichedBook = { ...book, summary: wikiSummary }

@@ -10,6 +10,10 @@ import { createBook, findDuplicates, getBooks, whereIs } from '@/lib/storage'
 export interface ShelfResult extends Partial<Book> {
   matched?: boolean
   scannedTitle?: string
+  // Provenienza dei campi e campi rimasti vuoti: informazioni di servizio,
+  // non finiscono in archivio.
+  sources?: Record<string, string>
+  missing?: string[]
 }
 
 type Dest = 'library' | 'market'
@@ -53,9 +57,10 @@ export function ShelfReview({ results, defaultDest, onRetry }: {
 
     results.forEach((r, i) => {
       if (!selected.has(i)) return
-      const { matched: _matched, scannedTitle: _scannedTitle, ...data } = r
+      const { matched: _matched, scannedTitle: _scannedTitle, sources, missing: _missing, ...data } = r
       createBook({
         ...data,
+        summarySource: (sources?.summary as Book['summarySource']) ?? null,
         collection: dest === 'market' ? 'market' : 'library',
         status: dest === 'market' ? 'for-sale' : 'to-read',
         listingPrice: dest === 'market' && !isNaN(listingPrice) ? listingPrice : null,

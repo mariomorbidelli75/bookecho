@@ -8,10 +8,20 @@ import { Star, Headphones, TrendingUp, ShoppingBag, BookOpen, Edit3, MapPin, Pac
 import { TopBar } from '@/components/TopBar'
 import { ReadingProgress } from '@/components/ReadingProgress'
 import { AuthorBooks } from '@/components/AuthorBooks'
+import { CompleteSheet } from '@/components/CompleteSheet'
 import type { Book } from '@/types'
 import { cn, formatDate, formatPrice } from '@/lib/utils'
 import { EMOTIONS } from '@/types'
 import { getBook, updateBook, moveToMarket } from '@/lib/storage'
+
+// Etichette delle fonti della trama: l'utente deve poter distinguere una
+// quarta di copertina da una sintesi scritta dall'AI.
+const SUMMARY_SOURCES: Record<string, string> = {
+  google: 'Google Books',
+  openlibrary: 'Open Library',
+  wikipedia: 'Wikipedia',
+  ai: 'sintesi generata dall’AI',
+}
 
 const ACTION_CARDS = [
   { href: 'audio', icon: Headphones, label: 'Trailer Audio', desc: 'Ascolta il riassunto', color: 'var(--forest-darker)', textColor: 'var(--cream)' },
@@ -134,12 +144,20 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
           </div>
         )}
 
-        {/* Summary */}
+        {/* Trama, con l'indicazione della fonte quando non è d'editore */}
         {book.summary && (
           <div className="p-4 rounded-2xl" style={{ background: 'var(--cream-2)' }}>
             <p className="text-sm leading-relaxed text-[var(--ink-2)]">{book.summary}</p>
+            {book.summarySource && (
+              <p className="text-[11px] text-[var(--muted)] mt-2">
+                Fonte: {SUMMARY_SOURCES[book.summarySource] ?? book.summarySource}
+              </p>
+            )}
           </div>
         )}
+
+        {/* Campi mancanti: si ripescano dalle fonti su richiesta */}
+        <CompleteSheet book={book} onUpdated={setBook} />
 
         {/* Dove si trova — posizione fisica + foto scaffale */}
         {(book.location || book.locationPhoto) && (

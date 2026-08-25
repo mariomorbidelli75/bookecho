@@ -13,6 +13,9 @@ export interface Book {
   year?: number | null
   cover?: string | null
   summary?: string | null
+  // Da dove viene la trama: una sintesi scritta dall'AI non va spacciata per
+  // testo d'editore, quindi la scheda la dichiara.
+  summarySource?: 'google' | 'openlibrary' | 'wikipedia' | 'ai' | null
   emotions?: string[] | null
   rating?: number | null
   status: BookStatus

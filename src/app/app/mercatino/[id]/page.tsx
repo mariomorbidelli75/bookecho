@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { BookOpen, Camera, MapPin, Tag, PackageCheck, Trash2, Undo2, Library, Check } from 'lucide-react'
 import { TopBar } from '@/components/TopBar'
+import { CompleteSheet } from '@/components/CompleteSheet'
 import type { Book } from '@/types'
 import { BOOK_CONDITIONS, SALE_CHANNELS } from '@/types'
 import { cn, compressImage, formatDate, formatPrice } from '@/lib/utils'
@@ -142,6 +143,9 @@ export default function MarketBookPage({ params }: { params: Promise<{ id: strin
             </Link>
           </div>
         </div>
+
+        {/* Campi mancanti: si ripescano dai cataloghi su richiesta */}
+        {book.id && <CompleteSheet book={book as Book} onUpdated={setBook} />}
 
         {/* Banner venduto */}
         {sold && (

@@ -5,9 +5,25 @@ import { Camera, Upload, Zap, AlertCircle, Search, Library, Store, CopyCheck } f
 import Image from 'next/image'
 import { TopBar } from '@/components/TopBar'
 import { ShelfReview, type ShelfResult } from '@/components/ShelfReview'
-import { cn, fileToBase64 } from '@/lib/utils'
+import { cn, fileToBase64, compressDataUrl } from '@/lib/utils'
 import type { Book } from '@/types'
 import { createBook, findDuplicates, whereIs, bookHref } from '@/lib/storage'
+
+// La risposta di /api/scan e /api/isbn porta anche la provenienza dei campi:
+// serve a dire all'utente da dove arrivano copertina e trama.
+type ScanResultData = Partial<Book> & {
+  sources?: Record<string, string>
+  missing?: string[]
+  warning?: string
+}
+
+const SOURCE_LABELS: Record<string, string> = {
+  google: 'Google Books',
+  openlibrary: 'Open Library',
+  wikipedia: 'Wikipedia',
+  ai: 'sintesi AI',
+  photo: 'la tua foto',
+}
 
 type ScanState = 'idle' | 'scanning' | 'found' | 'error' | 'manual' | 'shelf-review'
 type ScanMode = 'cover' | 'barcode' | 'shelf'
@@ -34,7 +50,7 @@ export default function ScanPage() {
   const [mode, setMode] = useState<ScanMode>('cover')
   const [state, setState] = useState<ScanState>('idle')
   const [preview, setPreview] = useState<string | null>(null)
-  const [result, setResult] = useState<Partial<Book> | null>(null)
+  const [result, setResult] = useState<ScanResultData | null>(null)
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const [manualIsbn, setManualIsbn] = useState('')
@@ -49,8 +65,6 @@ export default function ScanPage() {
   const [shelfResults, setShelfResults] = useState<ShelfResult[]>([])
   const [shelfAvailable, setShelfAvailable] = useState<boolean | null>(null)
 
-  // Copie dello stesso libro già presenti in libreria o nel mercatino
-  const [duplicates, setDuplicates] = useState<Book[]>([])
 
   useEffect(() => {
     setHasBarcode(typeof window !== 'undefined' && 'BarcodeDetector' in window)
@@ -65,10 +79,9 @@ export default function ScanPage() {
       .catch(() => setShelfAvailable(null))
   }, [])
 
-  // Appena c'è un risultato controllo l'archivio: il libro potrebbe esserci già.
-  useEffect(() => {
-    setDuplicates(result ? findDuplicates(result) : [])
-  }, [result])
+  // Copie dello stesso libro già in libreria o nel mercatino. Si ricava dal
+  // risultato: senza risultato non c'è nulla da confrontare.
+  const duplicates: Book[] = result ? findDuplicates(result) : []
 
   const stopCamera = useCallback(() => {
     if (rafRef.current) { clearTimeout(rafRef.current); rafRef.current = null }
@@ -252,13 +265,30 @@ export default function ScanPage() {
     }
   }
 
-  const saveBook = () => {
+  const saveBook = async () => {
     if (!result) return
     setSaving(true)
+
+    // I campi di servizio della risposta (provenienza, campi mancanti) non
+    // vanno in archivio: resta solo la fonte della trama, che va dichiarata.
+    const { sources, missing: _missing, found: _found, confidence: _confidence, ...clean } =
+      result as Partial<Book> & { sources?: Record<string, string>; missing?: string[]; found?: boolean; confidence?: number }
+
+    const data: Partial<Book> = { ...clean }
+    if (sources?.summary) data.summarySource = sources.summary as Book['summarySource']
+
+    // Nessun catalogo ha la copertina: meglio la foto appena scattata di un
+    // riquadro vuoto. Va compressa, altrimenti riempie da sola localStorage.
+    if (!data.cover && preview) {
+      try {
+        data.cover = await compressDataUrl(preview)
+      } catch {}
+    }
+
     if (dest === 'market') {
       const price = parseFloat(listPrice.replace(',', '.'))
       const book = createBook({
-        ...result,
+        ...data,
         collection: 'market',
         status: 'for-sale',
         listingPrice: isNaN(price) ? null : price,
@@ -267,7 +297,7 @@ export default function ScanPage() {
       router.push(`/app/mercatino/${book.id}`)
       return
     }
-    const book = createBook({ ...result, collection: 'library', status: 'read' })
+    const book = createBook({ ...data, collection: 'library', status: 'read' })
     router.push(`/app/book/${book.id}`)
   }
 
@@ -484,6 +514,26 @@ export default function ScanPage() {
               {result.isbn && <p className="text-xs font-mono text-[var(--muted)]">ISBN {result.isbn}</p>}
             </div>
           </div>
+
+          {/* Una fonte muta non è un libro senza dati: si dice e si può riprovare */}
+          {result.warning && (
+            <p className="text-[11px] leading-snug mb-2 px-3 py-2 rounded-xl" style={{ background: 'rgba(232,155,76,0.16)', color: '#8A4B10' }}>
+              {result.warning}
+            </p>
+          )}
+
+          {/* Da dove arrivano i dati, e cosa non è stato trovato */}
+          {(result.sources || result.missing?.length) && (
+            <p className="text-[11px] leading-snug text-[var(--muted)] mb-3">
+              {[
+                result.sources?.cover ? `Copertina da ${SOURCE_LABELS[result.sources.cover] ?? result.sources.cover}` : null,
+                result.sources?.summary ? `trama da ${SOURCE_LABELS[result.sources.summary] ?? result.sources.summary}` : null,
+              ].filter(Boolean).join(' · ')}
+              {result.missing?.includes('cover') && !preview ? ' · copertina non trovata' : ''}
+              {result.missing?.includes('cover') && preview ? ' · nessuna copertina nei cataloghi: uso la tua foto' : ''}
+              {result.missing?.includes('summary') ? ' · trama non trovata, potrai completarla dalla scheda' : ''}
+            </p>
+          )}
 
           {/* Avviso duplicati: il libro risulta già in libreria o nel mercatino */}
           {duplicates.length > 0 && (

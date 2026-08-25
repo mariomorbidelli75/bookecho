@@ -98,6 +98,26 @@ export function compressImage(file: File, maxPx = 600): Promise<string> {
   })
 }
 
+// Riduce una foto già in memoria (data URL) prima di usarla come copertina:
+// senza questo passaggio una foto da 3 MB riempirebbe localStorage da sola.
+export function compressDataUrl(dataUrl: string, maxPx = 600, quality = 0.82): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new window.Image()
+    img.onload = () => {
+      const scale = Math.min(1, maxPx / Math.max(img.width, img.height))
+      const canvas = document.createElement('canvas')
+      canvas.width = Math.round(img.width * scale)
+      canvas.height = Math.round(img.height * scale)
+      const ctx = canvas.getContext('2d')
+      if (!ctx) return reject(new Error('no canvas context'))
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+      resolve(canvas.toDataURL('image/jpeg', quality))
+    }
+    img.onerror = reject
+    img.src = dataUrl
+  })
+}
+
 export function fileToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()

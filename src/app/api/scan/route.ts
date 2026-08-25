@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { identifyBookFromImage } from '@/lib/ai'
-import { searchGoogleBooks, mapGoogleBook } from '@/lib/books'
+import { enrichBook } from '@/lib/enrich'
+
+// Riconoscimento + arricchimento su più cataloghi: qualche secondo.
+export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
   try {
@@ -8,22 +11,32 @@ export async function POST(req: NextRequest) {
     const { image } = body
     if (!image) return NextResponse.json({ error: 'No image' }, { status: 400 })
 
-    // ── 1. Claude Vision (best quality, requires ANTHROPIC_API_KEY) ──────────
-    const aiResult = await identifyBookFromImage(image)
-    if (aiResult.title) {
-      const query = `${aiResult.title} ${aiResult.author ?? ''}`.trim()
-      const gbResults = await searchGoogleBooks(query)
-      if (gbResults.length > 0) {
-        const gbData = mapGoogleBook(gbResults[0])
-        return NextResponse.json({ ...gbData, ...aiResult, found: true, confidence: 0.9 })
-      }
-      return NextResponse.json({ ...aiResult, found: true, confidence: 0.7 })
+    // ── 1. Claude Vision legge la copertina (richiede ANTHROPIC_API_KEY) ─────
+    const seen = await identifyBookFromImage(image)
+    if (seen.title) {
+      // Attenzione all'ordine: quello che ha letto il modello serve solo a
+      // trovare il libro, poi comandano i cataloghi. Sovrascrivere i dati del
+      // catalogo con i campi (spesso nulli) della lettura lasciava la scheda
+      // senza copertina e senza trama.
+      const book = await enrichBook({
+        title: seen.title,
+        author: seen.author,
+        isbn: seen.isbn,
+        publisher: seen.publisher,
+        year: seen.year,
+        summary: seen.summary,
+        genre: seen.genre,
+        pages: seen.pages,
+        language: seen.language,
+      }, { level: 'full', allowAi: true })
+
+      return NextResponse.json({ ...book, found: true, confidence: book.matched ? 0.9 : 0.7 })
     }
 
-    // ── 2. Google Cloud Vision TEXT_DETECTION (free 1000/month, requires GOOGLE_CLOUD_VISION_API_KEY) ──
+    // ── 2. Fallback OCR Google Vision (richiede GOOGLE_CLOUD_VISION_API_KEY) ─
     const visionText = await extractTextWithGoogleVision(image)
     if (visionText) {
-      // Build search query from the most prominent lines (title / author area)
+      // Le righe più lunghe della copertina sono titolo e autore
       const query = visionText
         .split('\n')
         .map(l => l.trim())
@@ -33,15 +46,14 @@ export async function POST(req: NextRequest) {
         .slice(0, 120)
 
       if (query.length > 5) {
-        const gbResults = await searchGoogleBooks(query)
-        if (gbResults.length > 0) {
-          const book = mapGoogleBook(gbResults[0])
+        const book = await enrichBook({ title: query }, { level: 'full' })
+        if (book.matched) {
           return NextResponse.json({ ...book, found: true, confidence: 0.75 })
         }
       }
     }
 
-    // ── 3. No recognition possible — client will show manual search ──────────
+    // ── 3. Nessun riconoscimento — il client apre la ricerca manuale ────────
     return NextResponse.json(
       { error: 'Libro non riconosciuto automaticamente. Usa la ricerca manuale.' },
       { status: 422 }
