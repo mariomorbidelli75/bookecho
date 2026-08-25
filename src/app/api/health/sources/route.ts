@@ -84,10 +84,36 @@ export async function GET() {
     }),
   ])
 
+  // Google Books risponde in modo diverso a seconda dell'host e dei parametri,
+  // e dai datacenter capita che rifiuti le richieste. Qui si vede quale
+  // variante passa: è così che si è scelto l'host usato in produzione.
+  const key = process.env.GOOGLE_BOOKS_API_KEY
+  const varianti = await Promise.all(
+    [
+      ['www.googleapis.com', ''],
+      ['www.googleapis.com', '&country=IT'],
+      ['books.googleapis.com', ''],
+      ['books.googleapis.com', '&country=IT'],
+    ].map(async ([host, extra]) => {
+      const t0 = Date.now()
+      try {
+        const res = await fetch(
+          `https://${host}/books/v1/volumes?q=isbn:${ISBN}${key ? `&key=${key}` : ''}${extra}`,
+          { signal: AbortSignal.timeout(12000) }
+        )
+        const items = res.ok ? ((await res.json()).items ?? []) : []
+        return { variante: `${host}${extra}`, http: res.status, risultati: items.length, ms: Date.now() - t0 }
+      } catch (e) {
+        return { variante: `${host}${extra}`, http: 0, risultati: 0, ms: Date.now() - t0, nota: e instanceof Error ? e.name : 'errore' }
+      }
+    })
+  )
+
   const essenziali = checks.filter(c => ['Google Books', 'Open Library', 'Wikipedia'].includes(c.fonte))
   return NextResponse.json({
     stato: essenziali.every(c => c.ok) ? 'ok' : essenziali.some(c => c.ok) ? 'degradato' : 'ko',
     verificato: new Date().toISOString(),
     fonti: checks,
+    googleVarianti: varianti,
   })
 }
