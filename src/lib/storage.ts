@@ -30,6 +30,67 @@ export function getBook(id: string): Book | null {
   return getBooks().find(b => b.id === id) ?? null
 }
 
+// ── Controllo duplicati ────────────────────────────────────────────────────
+// Dopo una scansione serve sapere se il libro c'è già, sia in libreria che nel
+// mercatino, per lasciare all'utente la scelta se inserirlo lo stesso.
+
+// Confronto insensibile ad accenti, punteggiatura e maiuscole: NFD separa gli
+// accenti dalle lettere e il filtro successivo li scarta ("Città" → "citta").
+function norm(value?: string | null): string {
+  return (value ?? '')
+    .toLowerCase()
+    .normalize('NFD')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()
+}
+
+function normIsbn(value?: string | null): string {
+  return (value ?? '').replace(/[^0-9xX]/g, '').toUpperCase()
+}
+
+// Stesso ISBN, oppure stesso titolo con autore compatibile (uno contiene
+// l'altro: "Eco" vs "Umberto Eco"). Se un autore manca basta il titolo.
+export function isSameBook(a: Partial<Book>, b: Partial<Book>): boolean {
+  const isbnA = normIsbn(a.isbn)
+  const isbnB = normIsbn(b.isbn)
+  if (isbnA && isbnB && isbnA === isbnB) return true
+
+  const titleA = norm(a.title)
+  const titleB = norm(b.title)
+  if (!titleA || titleA !== titleB) return false
+
+  const authorA = norm(a.author)
+  const authorB = norm(b.author)
+  if (!authorA || !authorB || authorA === 'autore sconosciuto' || authorB === 'autore sconosciuto') return true
+  return authorA === authorB || authorA.includes(authorB) || authorB.includes(authorA)
+}
+
+// Copie già presenti in archivio (libreria + mercatino), più recenti per prime.
+export function findDuplicates(candidate: Partial<Book>, books: Book[] = getBooks()): Book[] {
+  if (!norm(candidate.title) && !normIsbn(candidate.isbn)) return []
+  return books.filter(b => b.id !== candidate.id && isSameBook(candidate, b))
+}
+
+// Etichetta breve per dire all'utente dove si trova la copia che ha già.
+export function whereIs(book: Book): string {
+  if (collectionOf(book) === 'market') {
+    return book.status === 'sold' ? 'Mercatino · venduto' : 'Mercatino · in vendita'
+  }
+  const labels: Record<string, string> = {
+    read: 'Libreria · letto',
+    reading: 'Libreria · in lettura',
+    'to-read': 'Libreria · da leggere',
+    wishlist: 'Libreria · desideri',
+    sold: 'Libreria · venduto',
+  }
+  return labels[book.status] ?? 'Libreria'
+}
+
+// Percorso della scheda del libro, diverso tra libreria e mercatino.
+export function bookHref(book: Book): string {
+  return collectionOf(book) === 'market' ? `/app/mercatino/${book.id}` : `/app/book/${book.id}`
+}
+
 export function createBook(data: Partial<Book>): Book {
   const id = `book-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
   const now = new Date().toISOString()

@@ -1,13 +1,13 @@
 'use client'
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Camera, Upload, Zap, AlertCircle, Search, Library, Store } from 'lucide-react'
+import { Camera, Upload, Zap, AlertCircle, Search, Library, Store, CopyCheck } from 'lucide-react'
 import Image from 'next/image'
 import { TopBar } from '@/components/TopBar'
 import { ShelfReview, type ShelfResult } from '@/components/ShelfReview'
 import { cn, fileToBase64 } from '@/lib/utils'
 import type { Book } from '@/types'
-import { createBook } from '@/lib/storage'
+import { createBook, findDuplicates, whereIs, bookHref } from '@/lib/storage'
 
 type ScanState = 'idle' | 'scanning' | 'found' | 'error' | 'manual' | 'shelf-review'
 type ScanMode = 'cover' | 'barcode' | 'shelf'
@@ -49,6 +49,9 @@ export default function ScanPage() {
   const [shelfResults, setShelfResults] = useState<ShelfResult[]>([])
   const [shelfAvailable, setShelfAvailable] = useState<boolean | null>(null)
 
+  // Copie dello stesso libro già presenti in libreria o nel mercatino
+  const [duplicates, setDuplicates] = useState<Book[]>([])
+
   useEffect(() => {
     setHasBarcode(typeof window !== 'undefined' && 'BarcodeDetector' in window)
     // Arrivando da "+" nel mercatino la destinazione è già impostata
@@ -61,6 +64,11 @@ export default function ScanPage() {
       .then(d => setShelfAvailable(Boolean(d.available)))
       .catch(() => setShelfAvailable(null))
   }, [])
+
+  // Appena c'è un risultato controllo l'archivio: il libro potrebbe esserci già.
+  useEffect(() => {
+    setDuplicates(result ? findDuplicates(result) : [])
+  }, [result])
 
   const stopCamera = useCallback(() => {
     if (rafRef.current) { clearTimeout(rafRef.current); rafRef.current = null }
@@ -477,6 +485,35 @@ export default function ScanPage() {
             </div>
           </div>
 
+          {/* Avviso duplicati: il libro risulta già in libreria o nel mercatino */}
+          {duplicates.length > 0 && (
+            <div className="rounded-2xl p-3 mb-3" style={{ background: 'rgba(232,155,76,0.16)', border: '1px solid rgba(232,155,76,0.45)' }}>
+              <p className="text-xs font-semibold flex items-center gap-1.5 mb-1.5" style={{ color: '#8A4B10' }}>
+                <CopyCheck size={13} />
+                {duplicates.length === 1 ? 'Questo libro ce l’hai già' : `Di questo libro hai già ${duplicates.length} copie`}
+              </p>
+              <div className="space-y-1 mb-2">
+                {duplicates.slice(0, 3).map(d => (
+                  <button
+                    key={d.id}
+                    onClick={() => router.push(bookHref(d))}
+                    className="w-full flex items-center justify-between gap-2 text-[11px] text-left"
+                    style={{ color: 'var(--ink-2)' }}
+                  >
+                    <span className="truncate">{whereIs(d)}{d.location ? ` · ${d.location}` : ''}</span>
+                    <span className="flex-shrink-0 underline" style={{ color: 'var(--forest)' }}>Apri</span>
+                  </button>
+                ))}
+                {duplicates.length > 3 && (
+                  <p className="text-[11px]" style={{ color: 'var(--muted)' }}>e altre {duplicates.length - 3}…</p>
+                )}
+              </div>
+              <p className="text-[11px] leading-snug" style={{ color: 'var(--muted)' }}>
+                Aggiungilo di nuovo solo se è una seconda copia o un’altra edizione.
+              </p>
+            </div>
+          )}
+
           {/* Destinazione */}
           <div className="flex gap-2 mb-3">
             {([
@@ -510,10 +547,17 @@ export default function ScanPage() {
 
           <div className="flex gap-2">
             <button onClick={reset} className="flex-1 py-3 rounded-2xl text-sm font-semibold border transition-all active:scale-95" style={{ borderColor: 'var(--line-2)', color: 'var(--ink)' }}>
-              Riprova
+              {duplicates.length > 0 ? 'Non aggiungerlo' : 'Riprova'}
             </button>
-            <button onClick={saveBook} disabled={saving} className="flex-1 py-3 rounded-2xl text-sm font-semibold transition-all active:scale-95" style={{ background: 'var(--forest)', color: 'var(--cream)' }}>
-              {saving ? 'Salvataggio…' : dest === 'market' ? 'Metti in vendita' : 'Aggiungi alla libreria'}
+            <button
+              onClick={saveBook}
+              disabled={saving}
+              className="flex-1 py-3 rounded-2xl text-sm font-semibold transition-all active:scale-95"
+              style={duplicates.length > 0
+                ? { background: 'var(--accent-amber)', color: 'var(--ink)' }
+                : { background: 'var(--forest)', color: 'var(--cream)' }}
+            >
+              {saving ? 'Salvataggio…' : duplicates.length > 0 ? 'Aggiungi comunque' : dest === 'market' ? 'Metti in vendita' : 'Aggiungi alla libreria'}
             </button>
           </div>
         </div>

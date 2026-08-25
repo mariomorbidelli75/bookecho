@@ -2,10 +2,10 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Image from 'next/image'
-import { BookOpen, Check, Library, Store, AlertCircle } from 'lucide-react'
+import { BookOpen, Check, Library, Store, AlertCircle, CopyCheck } from 'lucide-react'
 import type { Book } from '@/types'
 import { cn, formatPrice } from '@/lib/utils'
-import { createBook } from '@/lib/storage'
+import { createBook, findDuplicates, getBooks, whereIs } from '@/lib/storage'
 
 export interface ShelfResult extends Partial<Book> {
   matched?: boolean
@@ -22,7 +22,15 @@ export function ShelfReview({ results, defaultDest, onRetry }: {
   onRetry: () => void
 }) {
   const router = useRouter()
-  const [selected, setSelected] = useState<Set<number>>(new Set(results.map((_, i) => i)))
+  // Confronto una sola volta con l'archivio (libreria + mercatino): i libri che
+  // ci sono già partono deselezionati, ma restano selezionabili a mano.
+  const [dupes] = useState<Book[][]>(() => {
+    const stored = getBooks()
+    return results.map(r => findDuplicates(r, stored))
+  })
+  const [selected, setSelected] = useState<Set<number>>(
+    () => new Set(results.map((_, i) => i).filter(i => dupes[i].length === 0))
+  )
   const [dest, setDest] = useState<Dest>(defaultDest)
   const [price, setPrice] = useState('')
   const [location, setLocation] = useState('')
@@ -60,6 +68,7 @@ export function ShelfReview({ results, defaultDest, onRetry }: {
   }
 
   const matchedCount = results.filter(r => r.matched).length
+  const dupCount = dupes.filter(d => d.length > 0).length
 
   return (
     <div className="rounded-t-3xl max-h-[78vh] flex flex-col animate-fade-up" style={{ background: 'var(--cream)' }}>
@@ -70,6 +79,16 @@ export function ShelfReview({ results, defaultDest, onRetry }: {
         <p className="text-xs text-[var(--muted)] mt-0.5">
           {matchedCount} con scheda completa dal web · deseleziona quelli sbagliati, potrai correggerli dopo.
         </p>
+        {dupCount > 0 && (
+          <p className="text-xs mt-2 px-3 py-2 rounded-xl flex items-start gap-1.5" style={{ background: 'rgba(232,155,76,0.16)', color: '#8A4B10' }}>
+            <CopyCheck size={13} className="flex-shrink-0 mt-0.5" />
+            <span>
+              {dupCount === 1
+                ? '1 libro ce l’hai già: l’ho lasciato deselezionato. Toccalo per aggiungerlo lo stesso come seconda copia.'
+                : `${dupCount} libri ce li hai già: li ho lasciati deselezionati. Toccali per aggiungerli lo stesso come seconde copie.`}
+            </span>
+          </p>
+        )}
       </div>
 
       {/* Elenco riconosciuti */}
@@ -102,6 +121,12 @@ export function ShelfReview({ results, defaultDest, onRetry }: {
                 {!r.matched && (
                   <p className="text-[11px] flex items-center gap-1 mt-0.5" style={{ color: '#B86B1A' }}>
                     <AlertCircle size={10} /> Solo dorso — da completare
+                  </p>
+                )}
+                {dupes[i].length > 0 && (
+                  <p className="text-[11px] flex items-center gap-1 mt-0.5 truncate" style={{ color: '#8A4B10' }}>
+                    <CopyCheck size={10} className="flex-shrink-0" />
+                    Già presente · {whereIs(dupes[i][0])}
                   </p>
                 )}
               </div>

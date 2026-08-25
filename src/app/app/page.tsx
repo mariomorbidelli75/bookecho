@@ -106,7 +106,7 @@ export default function LibraryPage() {
       <div className="px-4 pt-8 pb-4" style={{ background: 'var(--cream)' }}>
         {/* Logo Librò centrato in alto */}
         <div className="flex justify-center mb-4">
-          <Image src="/logo.png" alt="Librò" width={120} height={107} priority className="h-12 w-auto object-contain" />
+          <Image src="/logo.png" alt="Librò" width={360} height={312} priority className="h-14 w-auto object-contain" />
         </div>
         <div className="flex items-center justify-between mb-4">
           <div>
