@@ -62,7 +62,7 @@ export default function InvitePage() {
       </div>
 
       <div className="flex-1 px-5 py-6">
-        {step === null && <div className="h-40 shimmer rounded-3xl" />}
+        {step === null && <div className="h-40 skeleton rounded-3xl" />}
 
         {step === 'install' && (
           <div className="space-y-4">

@@ -103,7 +103,7 @@ export default function FriendsPage() {
         </button>
       ) : undefined} />
 
-      {loggedIn === null && <div className="m-4 h-40 shimmer rounded-3xl" />}
+      {loggedIn === null && <div className="m-4 h-40 skeleton rounded-3xl" />}
 
       {loggedIn === false && (
         <div className="px-4 py-6 space-y-4">

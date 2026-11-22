@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { BookOpen, Camera, Store, Sparkles, User } from 'lucide-react'
+import { BookOpen, Camera, Store, Sparkles, User, MessagesSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 const NAV_ITEMS = [
@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { href: '/app/mercatino', icon: Store, label: 'Mercatino' },
   { href: '/app/scan', icon: Camera, label: 'Scansiona' },
   { href: '/app/suggest', icon: Sparkles, label: 'Idee' },
+  { href: '/app/clubs', icon: MessagesSquare, label: 'Club' },
   { href: '/app/profile', icon: User, label: 'Profilo' },
 ]
 
