@@ -104,7 +104,9 @@ Prezzi in euro, numero senza simbolo. Se non trovi annunci: {"listings":[]}.`,
       }],
     })
 
-    const text = response.content.filter(b => b.type === 'text').map(b => (b as Anthropic.TextBlock).text).join('\n')
+    const text = response.content.filter(b => b.type === 'text').map(b => (b as Anthropic.TextBlock).text).join('')
+    const searches = response.content.filter(b => b.type === 'server_tool_use').length
+    console.log('valuation', JSON.stringify({ title: book.title, searches, stop: response.stop_reason, text: text.slice(-1200) }))
     const match = text.match(/\{[\s\S]*\}\s*$/) ?? text.match(/\{[\s\S]*\}/)
     if (!match) return { listings: [] }
     const raw = JSON.parse(match[0]) as { listings?: FoundListing[]; note?: string }
