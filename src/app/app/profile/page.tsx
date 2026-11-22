@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import { BookOpen, Star, TrendingUp, Zap, ChevronRight, Gift, Users, Camera, Check, Pencil } from 'lucide-react'
+import { BookOpen, Star, TrendingUp, Zap, ChevronRight, Gift, Users, Camera, Check, Pencil, LogOut, MessagesSquare } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { TopBar } from '@/components/TopBar'
@@ -8,11 +8,13 @@ import type { Book } from '@/types'
 import { formatPrice, compressImageSquare } from '@/lib/utils'
 import { getLibraryBooks } from '@/lib/storage'
 import { getMyName, setMyName, getMyAvatar, setMyAvatar } from '@/lib/social'
-import { fetchFriends, currentUserId } from '@/lib/account'
+import { fetchFriends, currentAccount, getMyProfile, updateMyProfile, logout } from '@/lib/account'
 
 export default function ProfilePage() {
   const [books, setBooks] = useState<Book[]>([])
-  const [name, setName] = useState('Mario')
+  const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
+  const [leaving, setLeaving] = useState(false)
   const [editingName, setEditingName] = useState(false)
   const [avatar, setAvatar] = useState<string | null>(null)
   const [friendCount, setFriendCount] = useState(0)
@@ -24,7 +26,9 @@ export default function ProfilePage() {
     setName(getMyName())
     setAvatar(getMyAvatar())
     fetchFriends().then(f => setFriendCount(f.length)).catch(() => {})
-    currentUserId().then(id => setOnline(!!id))
+    currentAccount().then(a => { setOnline(!!a); setEmail(a?.email ?? '') })
+    // Il nome vero è quello dell'account: lo vedono anche gli amici
+    getMyProfile().then(p => { if (p?.name) { setName(p.name); setMyName(p.name) } }).catch(() => {})
   }, [])
 
   const handleAvatar = async (file: File) => {
@@ -34,9 +38,19 @@ export default function ProfilePage() {
   }
 
   const saveName = () => {
-    setMyName(name.trim() || 'Mario')
-    setName(name.trim() || 'Mario')
+    const n = name.trim()
+    if (n.length < 2) return
+    setMyName(n)
+    setName(n)
     setEditingName(false)
+    updateMyProfile({ name: n }).catch(() => {})
+  }
+
+  const doLogout = async () => {
+    if (!confirm('Vuoi uscire dal tuo account su questo telefono? I tuoi libri restano salvati online.')) return
+    setLeaving(true)
+    await logout()
+    window.location.href = '/app'
   }
 
   const read = books.filter(b => b.status === 'read')
@@ -94,7 +108,7 @@ export default function ProfilePage() {
                 <Pencil size={13} className="text-[var(--muted)]" />
               </button>
             )}
-            <p className="text-sm text-[var(--muted)]">Collezionista di libri</p>
+            <p className="text-sm text-[var(--muted)] truncate">{email || 'Collezionista di libri'}</p>
           </div>
         </div>
         <input
@@ -118,10 +132,11 @@ export default function ProfilePage() {
         <div className="space-y-2">
           {[
             { href: '/app/gift', icon: Gift, title: 'Regala a un amico', desc: 'Paga tu il primo anno di abbonamento', color: 'var(--accent-amber)' },
+            { href: '/app/clubs', icon: MessagesSquare, title: 'Book club', desc: 'Leggete insieme e parlatene su Telegram', color: '#229ED9' },
             { href: '/app/friends', icon: Users, title: 'Invita un amico', desc: friendCount > 0 ? `${friendCount} ${friendCount === 1 ? 'amico iscritto' : 'amici iscritti'} · condividete le letture` : 'Condividete le letture e scambiatevi i libri', color: 'var(--forest)' },
           ].map(item => (
             <Link key={item.href} href={item.href} className="flex items-center gap-3 p-4 rounded-2xl border border-[var(--line)] transition-all active:scale-[0.98] bg-white">
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: item.color, color: item.color === 'var(--forest)' ? 'var(--cream)' : 'var(--ink)' }}>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: item.color, color: item.color === 'var(--accent-amber)' ? 'var(--ink)' : 'var(--cream)' }}>
                 <item.icon size={20} />
               </div>
               <div className="flex-1 min-w-0">
@@ -136,7 +151,7 @@ export default function ProfilePage() {
         <div className="rounded-2xl overflow-hidden border border-[var(--line)]">
           {[
             { label: 'Libri in archivio', desc: `${books.length} libri salvati` },
-            { label: 'Archiviazione', desc: online ? 'Online · salvata sul tuo account' : 'Solo su questo telefono · accedi da Amici lettori per salvarla online' },
+            { label: 'Archiviazione', desc: online ? 'Online · salvata sul tuo account' : 'Solo su questo telefono' },
             { label: 'Librò', desc: 'tutti i libri in un posto solo · v1.0' },
           ].map((item, i) => (
             <div key={i} className="flex items-center justify-between px-4 py-3.5 border-b border-[var(--line)] last:border-none" style={{ background: 'white' }}>
@@ -148,6 +163,14 @@ export default function ProfilePage() {
             </div>
           ))}
         </div>
+
+        {online && (
+          <button onClick={doLogout} disabled={leaving}
+            className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-semibold border transition-all active:scale-95 disabled:opacity-60"
+            style={{ borderColor: 'rgba(200,84,42,0.35)', color: '#C8542A', background: 'white' }}>
+            <LogOut size={16} /> {leaving ? 'Esco…' : 'Esci dall\'account'}
+          </button>
+        )}
       </div>
     </div>
   )

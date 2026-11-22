@@ -9,7 +9,7 @@ import { matchScore, swapCandidates, type Friend } from '@/lib/social'
 import { AuthForm } from '@/components/AuthForm'
 import {
   currentUserId, getMyProfile, updateMyProfile, fetchFriends, unfriend,
-  syncMyReading, consumePendingInvite, signOut, inviteLink, type MyProfile,
+  syncMyReading, consumePendingInvite, logout as fullLogout, inviteLink, type MyProfile,
 } from '@/lib/account'
 import { supabase } from '@/lib/supabase'
 
@@ -76,10 +76,9 @@ export default function FriendsPage() {
   }
 
   const logout = async () => {
-    await signOut()
-    setProfile(null)
-    setFriends([])
-    setLoggedIn(false)
+    if (!confirm('Vuoi uscire dal tuo account su questo telefono? I tuoi libri restano salvati online.')) return
+    await fullLogout()
+    window.location.href = '/app'
   }
 
   const proposeSwap = async (friend: Friend) => {

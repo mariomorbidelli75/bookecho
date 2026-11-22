@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase'
+import { syncLibrary } from '@/lib/cloud-books'
 import type { Book } from '@/types'
 import type { Friend } from '@/lib/social'
 
@@ -78,6 +79,27 @@ export async function signIn(email: string, password: string, invite?: string) {
 
 export async function signOut() {
   if (supabase) await supabase.auth.signOut()
+}
+
+// Esci dall'account e libera il telefono: libri, nome e foto restano salvati
+// online e tornano al prossimo accesso. Così chi entra dopo (un'altra persona
+// sullo stesso telefono) parte da zero e non vede i dati di chi è uscito.
+export async function logout() {
+  try { await syncLibrary() } catch {}
+  await signOut()
+  for (const k of [
+    'bookecho_books', 'bookecho_deleted', 'bookecho_owner',
+    'libro_friends', 'libro_sharing', 'libro_refcode', 'libro_username', 'libro_avatar', PENDING_INVITE_KEY,
+  ]) {
+    try { localStorage.removeItem(k) } catch {}
+  }
+}
+
+export async function currentAccount(): Promise<{ id: string; email: string } | null> {
+  if (!supabase) return null
+  const { data } = await supabase.auth.getSession()
+  const u = data.session?.user
+  return u ? { id: u.id, email: u.email ?? '' } : null
 }
 
 // ── Inviti ──────────────────────────────────────────────────────────────────
