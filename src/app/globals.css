@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 :root {
+  --font-inter: 'Inter Variable', Inter, system-ui, sans-serif;
+  --font-fraunces: 'Fraunces Variable', Georgia, serif;
   --cream: #F5F1E8;
   --cream-2: #EDE6D6;
   --cream-3: #E5DCC7;

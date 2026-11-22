@@ -1,20 +1,9 @@
 import type { Metadata, Viewport } from 'next'
-import { Fraunces, Inter } from 'next/font/google'
+// Font inclusi nel progetto (non scaricati da Google a ogni pubblicazione:
+// quel download falliva a volte e bloccava la messa online).
+import '@fontsource-variable/inter'
+import '@fontsource-variable/fraunces'
 import './globals.css'
-
-const fraunces = Fraunces({
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700', '800'],
-  variable: '--font-fraunces',
-  display: 'swap',
-})
-
-const inter = Inter({
-  subsets: ['latin'],
-  weight: ['300', '400', '500', '600', '700'],
-  variable: '--font-inter',
-  display: 'swap',
-})
 
 export const metadata: Metadata = {
   title: 'Librò — tutti i libri in un posto solo',
@@ -34,7 +23,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="it" className={`${fraunces.variable} ${inter.variable}`}>
+    <html lang="it">
       <head>
         {/* Cattura subito la proposta di installazione (Android/Chrome) e registra il service worker */}
         <script
