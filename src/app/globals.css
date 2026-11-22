@@ -54,6 +54,16 @@ body {
 
 .pb-safe { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px)); }
 
+/* ── Guscio dell'app: telefono, tablet, computer ─────────────────────────── */
+.app-shell { min-height: 100dvh; background: var(--cream); overflow-x: hidden; }
+.app-content { max-width: 430px; margin: 0 auto; min-height: 100dvh; position: relative; }
+@media (min-width: 768px) {
+  .pb-safe { padding-bottom: 48px; }
+  .app-content { padding: 0 24px; }
+  .app-content--wide { max-width: 1120px; }
+  .app-content--narrow { max-width: 720px; }
+}
+
 @keyframes blink {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.3; }

@@ -4,7 +4,7 @@ import { usePathname } from 'next/navigation'
 import { BookOpen, Camera, Store, Sparkles, User, MessagesSquare } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-const NAV_ITEMS = [
+export const NAV_ITEMS = [
   { href: '/app', icon: BookOpen, label: 'Libreria' },
   { href: '/app/mercatino', icon: Store, label: 'Mercatino' },
   { href: '/app/scan', icon: Camera, label: 'Scansiona' },
@@ -18,7 +18,7 @@ export function BottomNav() {
 
   return (
     <nav
-      className="fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-50"
+      className="md:hidden fixed bottom-0 left-1/2 -translate-x-1/2 w-full max-w-[430px] z-50"
       style={{ background: 'rgba(245,241,232,0.92)', backdropFilter: 'blur(20px)', borderTop: '1px solid rgba(26,26,26,0.08)', paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
     >
       <div className="flex items-center justify-around px-1 h-16">

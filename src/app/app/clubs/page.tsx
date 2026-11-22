@@ -118,6 +118,7 @@ function ClubList({ title, clubs }: { title: string; clubs: Club[] }) {
   return (
     <section className="space-y-2">
       <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)] px-1">{title}</h3>
+      <div className="grid gap-2 lg:grid-cols-2 xl:grid-cols-3">
       {clubs.map(c => (
         <Link key={c.id} href={`/app/clubs/${c.id}`}
           className="flex gap-3 p-3 rounded-2xl transition-all active:scale-[0.98]"
@@ -137,6 +138,7 @@ function ClubList({ title, clubs }: { title: string; clubs: Club[] }) {
           </div>
         </Link>
       ))}
+      </div>
     </section>
   )
 }

@@ -193,7 +193,7 @@ export default function MercatinoPage() {
       </div>
 
       {/* Elenco */}
-      <div className="px-4 space-y-2.5">
+      <div className="px-4 grid gap-2.5 lg:grid-cols-2 xl:grid-cols-3 [&>*:only-child]:col-span-full">
         {loading ? (
           Array.from({ length: 4 }).map((_, i) => <div key={i} className="skeleton h-24 rounded-2xl" />)
         ) : filtered.length === 0 ? (

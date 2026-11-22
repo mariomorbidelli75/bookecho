@@ -23,7 +23,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col md:max-w-none">
       <div className="px-6 pt-14 pb-8 text-center" style={{ background: 'var(--forest)', color: 'var(--cream)' }}>
         <Image src="/icon-192.png" alt="Librò" width={72} height={72} className="mx-auto rounded-2xl mb-4" />
         <h1 className="font-serif text-3xl font-semibold">Librò</h1>
@@ -31,7 +31,7 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
           Tutti i tuoi libri in un posto solo. Scopri cosa leggono gli amici, entra nei book club, valuta e scambia i tuoi libri.
         </p>
       </div>
-      <div className="flex-1 px-5 py-6">
+      <div className="flex-1 px-5 py-6 w-full md:max-w-md md:mx-auto md:py-10">
         {confirmSent ? (
           <div className="text-center space-y-2 py-6">
             <h2 className="font-serif text-xl font-semibold">Controlla la tua email</h2>
