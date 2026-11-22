@@ -59,7 +59,7 @@ export default function EditBookPage({ params }: { params: Promise<{ id: string 
   }
 
   const remove = () => {
-    if (!confirm('Eliminare questo libro dalla libreria?')) return
+    if (!confirm(`Eliminare definitivamente "${book.title ?? 'questo libro'}"?\n\nLa scheda sparisce dalla libreria su tutti i tuoi dispositivi e non si può recuperare.`)) return
     deleteBook(id)
     router.push('/app')
   }
@@ -85,7 +85,7 @@ export default function EditBookPage({ params }: { params: Promise<{ id: string 
   return (
     <div>
       <TopBar title="Modifica libro" back right={
-        <button onClick={remove} className="p-2 rounded-full text-red-500 hover:bg-red-50 transition-colors">
+        <button onClick={remove} aria-label="Elimina libro" className="p-2 rounded-full text-red-500 hover:bg-red-50 transition-colors">
           <Trash2 size={18} />
         </button>
       } />

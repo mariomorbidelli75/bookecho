@@ -4,7 +4,7 @@ import { use } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Star, Headphones, TrendingUp, ShoppingBag, BookOpen, Edit3, MapPin, PackageCheck, Store } from 'lucide-react'
+import { Star, Headphones, TrendingUp, ShoppingBag, BookOpen, Edit3, MapPin, PackageCheck, Store, Trash2 } from 'lucide-react'
 import { TopBar } from '@/components/TopBar'
 import { ReadingProgress } from '@/components/ReadingProgress'
 import { AuthorBooks } from '@/components/AuthorBooks'
@@ -12,7 +12,7 @@ import { CompleteSheet } from '@/components/CompleteSheet'
 import type { Book } from '@/types'
 import { cn, formatDate, formatPrice } from '@/lib/utils'
 import { EMOTIONS } from '@/types'
-import { getBook, updateBook, moveToMarket } from '@/lib/storage'
+import { getBook, updateBook, moveToMarket, deleteBook } from '@/lib/storage'
 
 // Etichette delle fonti della trama: l'utente deve poter distinguere una
 // quarta di copertina da una sintesi scritta dall'AI.
@@ -256,6 +256,19 @@ export default function BookDetailPage({ params }: { params: Promise<{ id: strin
 
         {/* Altri libri dello stesso autore + marketplace */}
         <AuthorBooks author={book.author} excludeTitle={book.title} />
+
+        {/* Eliminazione definitiva (rovinato, regalato, perso…) */}
+        <button
+          onClick={() => {
+            if (!confirm(`Eliminare definitivamente "${book.title}"?\n\nLa scheda sparisce dalla libreria su tutti i tuoi dispositivi e non si può recuperare.`)) return
+            deleteBook(id)
+            router.push('/app')
+          }}
+          className="w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-semibold border transition-all active:scale-95"
+          style={{ borderColor: 'rgba(200,84,42,0.35)', color: '#C8542A', background: 'white' }}
+        >
+          <Trash2 size={17} /> Elimina libro
+        </button>
       </div>
     </div>
   )
