@@ -31,7 +31,7 @@ export async function identifyBookFromImage(base64Image: string): Promise<Partia
   try {
     const response = await client.messages.create({
       model: MODEL,
-      max_tokens: 2048,
+      max_tokens: 8000,
       messages: [{
         role: 'user',
         content: [
@@ -68,7 +68,7 @@ export async function identifyBooksFromShelfImage(base64Image: string): Promise<
   try {
     const response = await client.messages.create({
       model: MODEL,
-      max_tokens: 4096,
+      max_tokens: 8000,
       messages: [{
         role: 'user',
         content: [
@@ -122,7 +122,7 @@ export async function generateBookSummary(title: string, author: string): Promis
   try {
     const response = await client.messages.create({
       model: MODEL,
-      max_tokens: 512,
+      max_tokens: 8000,
       messages: [{ role: 'user', content: `Scrivi un riassunto coinvolgente di 3-4 frasi del libro "${title}" di ${author} in italiano. Solo il testo, senza titoli o prefazioni.` }]
     })
     return textOf(response) || null
@@ -134,7 +134,7 @@ export async function generateAudioScript(book: Partial<Book>): Promise<string> 
     try {
       const response = await client.messages.create({
         model: MODEL,
-        max_tokens: 512,
+        max_tokens: 8000,
         messages: [{ role: 'user', content: `Scrivi uno script per un trailer audio di 90 secondi del libro "${book.title}" di ${book.author}. Tono: coinvolgente, come un booktrailer cinematografico. In italiano. Solo il testo parlato.\n${book.summary ? `Contesto: ${book.summary}` : ''}` }]
       })
       const text = textOf(response)
@@ -164,7 +164,7 @@ export async function generateSellListing(book: Book, platform: string): Promise
     try {
       const response = await client.messages.create({
         model: MODEL,
-        max_tokens: 800,
+        max_tokens: 8000,
         messages: [{ role: 'user', content: `Crea un annuncio di vendita per ${platform} del libro "${book.title}" di ${book.author} (${book.year ?? 'N/D'}, ${book.publisher ?? 'N/D'}). Prezzo stimato: €${book.marketData?.avg ?? 12}. In italiano. Rispondi SOLO con JSON: {"title":"...","description":"...","hashtags":["..."]}` }]
       })
       const text = textOf(response)
@@ -206,7 +206,7 @@ export async function getSuggestions(books: Book[]): Promise<Suggestion[]> {
       const emotions = [...new Set(books.flatMap(b => b.emotions ?? []))].join(', ')
       const response = await client.messages.create({
         model: MODEL,
-        max_tokens: 1024,
+        max_tokens: 8000,
         messages: [{ role: 'user', content: `Ho letto questi libri: ${readTitles}. Emozioni prevalenti: ${emotions}.\nSuggeriscimi 4 libri in italiano o tradotti, rispondi SOLO con JSON array:\n[{"title":"...","author":"...","reason":"...","matchScore":90,"year":2000,"genre":"..."}]` }]
       })
       const text = textOf(response)
