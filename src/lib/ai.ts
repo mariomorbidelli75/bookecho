@@ -203,16 +203,19 @@ export async function getSuggestions(books: Book[]): Promise<Suggestion[]> {
   if (client && books.length > 0) {
     try {
       const readTitles = books.slice(0, 10).map(b => `"${b.title}" di ${b.author}`).join(', ')
+      const ownedList = books.slice(0, 80).map(b => b.title).join('; ')
       const emotions = [...new Set(books.flatMap(b => b.emotions ?? []))].join(', ')
       const response = await client.messages.create({
         model: MODEL,
         max_tokens: 8000,
-        messages: [{ role: 'user', content: `Ho letto questi libri: ${readTitles}. Emozioni prevalenti: ${emotions}.\nSuggeriscimi 4 libri in italiano o tradotti, rispondi SOLO con JSON array:\n[{"title":"...","author":"...","reason":"...","matchScore":90,"year":2000,"genre":"..."}]` }]
+        messages: [{ role: 'user', content: `Ho letto questi libri: ${readTitles}. Emozioni prevalenti: ${emotions}.\nHo già in libreria anche: ${ownedList}.\nSuggeriscimi 4 libri che NON ho già, in italiano o tradotti, rispondi SOLO con JSON array:\n[{"title":"...","author":"...","reason":"...","matchScore":90,"year":2000,"genre":"..."}]` }]
       })
       const text = textOf(response)
       const match = text.match(/\[[\s\S]*\]/)
       if (match) {
-        const raw: Suggestion[] = JSON.parse(match[0])
+        const owned = new Set(books.map(b => b.title.toLowerCase().trim()))
+        // Mai consigliare un libro che è già in libreria
+        const raw: Suggestion[] = (JSON.parse(match[0]) as Suggestion[]).filter(s => !owned.has(s.title.toLowerCase().trim()))
         const enriched = await Promise.all(raw.map(async s => {
           const gbs = await searchGoogleBooks(`${s.title} ${s.author}`)
           const cover = gbs[0] ? (mapGoogleBook(gbs[0]).cover as string | null) : null
