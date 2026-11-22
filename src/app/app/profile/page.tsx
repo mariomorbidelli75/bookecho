@@ -7,7 +7,8 @@ import { TopBar } from '@/components/TopBar'
 import type { Book } from '@/types'
 import { formatPrice, compressImageSquare } from '@/lib/utils'
 import { getLibraryBooks } from '@/lib/storage'
-import { getMyName, setMyName, getMyAvatar, setMyAvatar, getFriends } from '@/lib/social'
+import { getMyName, setMyName, getMyAvatar, setMyAvatar } from '@/lib/social'
+import { fetchFriends } from '@/lib/account'
 
 export default function ProfilePage() {
   const [books, setBooks] = useState<Book[]>([])
@@ -21,7 +22,7 @@ export default function ProfilePage() {
     setBooks(getLibraryBooks())
     setName(getMyName())
     setAvatar(getMyAvatar())
-    setFriendCount(getFriends().length)
+    fetchFriends().then(f => setFriendCount(f.length)).catch(() => {})
   }, [])
 
   const handleAvatar = async (file: File) => {

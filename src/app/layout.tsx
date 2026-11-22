@@ -35,6 +35,14 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="it" className={`${fraunces.variable} ${inter.variable}`}>
+      <head>
+        {/* Cattura subito la proposta di installazione (Android/Chrome) e registra il service worker */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `window.addEventListener('beforeinstallprompt',function(e){e.preventDefault();window.__installPrompt=e;window.dispatchEvent(new Event('libro-installable'))});if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('/sw.js').catch(function(){})})}`,
+          }}
+        />
+      </head>
       <body style={{ fontFamily: 'var(--font-inter, Inter, sans-serif)' }}>{children}</body>
     </html>
   )

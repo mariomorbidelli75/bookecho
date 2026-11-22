@@ -12,7 +12,7 @@ export interface Friend {
   name: string
   color: string
   /** Ultimo libro che l'amico sta leggendo (condiviso) */
-  currentBook: { title: string; author: string; genre?: string; cover?: string }
+  currentBook: { title: string; author: string; genre?: string; cover?: string } | null
   /** Generi preferiti, usati per il match di affinità */
   favoriteGenres: string[]
   /** Quando ha aggiornato l'ultima lettura */
@@ -88,23 +88,24 @@ export function matchScore(friend: Friend, myBooks: Book[] = getBooks()): number
   const myAuthors = new Set(myBooks.map(b => (b.author ?? '').toLowerCase()).filter(Boolean))
 
   let score = 0
-  const friendGenres = [friend.currentBook.genre, ...friend.favoriteGenres]
+  const friendGenres = [friend.currentBook?.genre, ...friend.favoriteGenres]
     .filter(Boolean)
     .map(g => (g as string).toLowerCase())
 
   for (const g of friendGenres) {
     if ([...myGenres].some(mg => mg.includes(g) || g.includes(mg))) score += 25
   }
-  if (myAuthors.has(friend.currentBook.author.toLowerCase())) score += 40
+  const cb = friend.currentBook
+  if (cb && myAuthors.has(cb.author.toLowerCase())) score += 40
   // Bonus se possiedo proprio quel libro (potenziale scambio diretto)
-  if (myBooks.some(b => b.title.toLowerCase() === friend.currentBook.title.toLowerCase())) score += 20
+  if (cb && myBooks.some(b => b.title.toLowerCase() === cb.title.toLowerCase())) score += 20
 
   return Math.min(100, score || 15)
 }
 
 // Trovo i libri che possiedo e che l'amico potrebbe voler leggere (per scambio).
 export function swapCandidates(friend: Friend, myBooks: Book[] = getBooks()): Book[] {
-  const wanted = [friend.currentBook.genre, ...friend.favoriteGenres]
+  const wanted = [friend.currentBook?.genre, ...friend.favoriteGenres]
     .filter(Boolean)
     .map(g => (g as string).toLowerCase())
   return myBooks
