@@ -373,7 +373,7 @@ export default function ScanPage() {
         {/* COVER / SHELF MODE — preview or viewfinder */}
         {(mode === 'cover' || mode === 'shelf') && state !== 'shelf-review' && (
           preview ? (
-            <div className="relative w-full h-full max-h-[50vh]">
+            <div className="relative w-full h-[50vh]">
               <Image src={preview} alt="Preview" fill className="object-contain" />
               {state === 'scanning' && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ background: 'rgba(0,0,0,0.55)' }}>
