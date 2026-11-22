@@ -1,4 +1,5 @@
 import type { Book, Collection } from '@/types'
+import { pushBook, markDeleted } from '@/lib/cloud-books'
 
 const KEY = 'bookecho_books'
 
@@ -119,6 +120,7 @@ export function updateBook(id: string, updates: Partial<Book>): Book | null {
 export function deleteBook(id: string): void {
   const books = getBooks().filter(b => b.id !== id)
   localStorage.setItem(KEY, JSON.stringify(books))
+  markDeleted(id) // anche online, se l'utente ha fatto l'accesso
 }
 
 // Sposta un libro nel mercatino mettendolo in vendita al prezzo indicato.
@@ -155,4 +157,5 @@ function persistBook(book: Book): void {
   if (idx >= 0) books[idx] = book
   else books.unshift(book)
   localStorage.setItem(KEY, JSON.stringify(books))
+  void pushBook(book) // copia online, se l'utente ha fatto l'accesso
 }

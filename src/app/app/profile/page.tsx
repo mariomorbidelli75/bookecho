@@ -8,7 +8,7 @@ import type { Book } from '@/types'
 import { formatPrice, compressImageSquare } from '@/lib/utils'
 import { getLibraryBooks } from '@/lib/storage'
 import { getMyName, setMyName, getMyAvatar, setMyAvatar } from '@/lib/social'
-import { fetchFriends } from '@/lib/account'
+import { fetchFriends, currentUserId } from '@/lib/account'
 
 export default function ProfilePage() {
   const [books, setBooks] = useState<Book[]>([])
@@ -16,6 +16,7 @@ export default function ProfilePage() {
   const [editingName, setEditingName] = useState(false)
   const [avatar, setAvatar] = useState<string | null>(null)
   const [friendCount, setFriendCount] = useState(0)
+  const [online, setOnline] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
@@ -23,6 +24,7 @@ export default function ProfilePage() {
     setName(getMyName())
     setAvatar(getMyAvatar())
     fetchFriends().then(f => setFriendCount(f.length)).catch(() => {})
+    currentUserId().then(id => setOnline(!!id))
   }, [])
 
   const handleAvatar = async (file: File) => {
@@ -134,7 +136,7 @@ export default function ProfilePage() {
         <div className="rounded-2xl overflow-hidden border border-[var(--line)]">
           {[
             { label: 'Libri in archivio', desc: `${books.length} libri salvati` },
-            { label: 'Archiviazione', desc: 'Locale (questo dispositivo)' },
+            { label: 'Archiviazione', desc: online ? 'Online · salvata sul tuo account' : 'Solo su questo telefono · accedi da Amici lettori per salvarla online' },
             { label: 'Librò', desc: 'tutti i libri in un posto solo · v1.0' },
           ].map((item, i) => (
             <div key={i} className="flex items-center justify-between px-4 py-3.5 border-b border-[var(--line)] last:border-none" style={{ background: 'white' }}>

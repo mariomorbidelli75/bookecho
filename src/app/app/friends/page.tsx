@@ -111,8 +111,8 @@ export default function FriendsPage() {
             <div className="w-14 h-14 mx-auto rounded-2xl flex items-center justify-center mb-3" style={{ background: 'var(--forest)' }}>
               <Users size={24} style={{ color: 'var(--cream)' }} />
             </div>
-            <h2 className="font-serif text-xl font-semibold">Accedi per vedere i tuoi amici</h2>
-            <p className="text-sm text-[var(--muted)] mt-1">Con un account inviti gli amici e vedete a vicenda cosa state leggendo.</p>
+            <h2 className="font-serif text-xl font-semibold">Accedi al tuo account</h2>
+            <p className="text-sm text-[var(--muted)] mt-1">Salvi la libreria online, inviti gli amici e vedete a vicenda cosa state leggendo.</p>
           </div>
           <AuthForm initialMode="login" onDone={({ needsConfirm }) => needsConfirm ? alert('Controlla la tua email per confermare l\'account, poi accedi.') : load()} />
         </div>
