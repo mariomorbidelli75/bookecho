@@ -23,6 +23,10 @@ create table if not exists public.friendships (
   primary key (user_id, friend_id)
 );
 
+-- Permessi base per gli utenti registrati (le regole RLS sotto limitano a "solo i miei")
+grant select, update on public.profiles    to authenticated;
+grant select, delete on public.friendships to authenticated;
+
 alter table public.profiles    enable row level security;
 alter table public.friendships enable row level security;
 
