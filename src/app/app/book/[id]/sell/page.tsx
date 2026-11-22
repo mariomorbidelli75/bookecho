@@ -7,6 +7,7 @@ import type { Book, SellListing } from '@/types'
 import { PLATFORMS } from '@/types'
 import { cn } from '@/lib/utils'
 import { getBook } from '@/lib/storage'
+import { apiFetch } from '@/lib/api'
 
 const PLATFORM_ICONS: Record<string, string> = {
   eBay: '🛍️', Catawiki: '🎨', Vinted: '👕', Subito: '📦', Instagram: '📸'
@@ -38,7 +39,7 @@ export default function SellPage({ params }: { params: Promise<{ id: string }> }
   const generate = async (b: Book, p: string) => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/listing/${id}`, {
+      const res = await apiFetch(`/api/listing/${id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ book: b, platform: p }),

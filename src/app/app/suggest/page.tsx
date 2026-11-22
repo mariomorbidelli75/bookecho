@@ -5,6 +5,7 @@ import { Sparkles, BookOpen, RefreshCw } from 'lucide-react'
 import { TopBar } from '@/components/TopBar'
 import type { Suggestion } from '@/types'
 import { getLibraryBooks } from '@/lib/storage'
+import { apiFetch } from '@/lib/api'
 
 export default function SuggestPage() {
   const [suggestions, setSuggestions] = useState<Suggestion[]>([])
@@ -13,7 +14,7 @@ export default function SuggestPage() {
   const load = () => {
     setLoading(true)
     const books = getLibraryBooks()
-    fetch('/api/suggest', {
+    apiFetch('/api/suggest', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ books }),

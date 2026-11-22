@@ -5,6 +5,7 @@ import { TopBar } from '@/components/TopBar'
 import { AudioPlayer } from '@/components/AudioPlayer'
 import type { Book } from '@/types'
 import { getBook, updateBook } from '@/lib/storage'
+import { apiFetch } from '@/lib/api'
 
 export default function AudioPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params)
@@ -27,7 +28,7 @@ export default function AudioPage({ params }: { params: Promise<{ id: string }> 
     if (generating || !book) return
     setGenerating(true)
     try {
-      const r = await fetch(`/api/audio/${id}`, {
+      const r = await apiFetch(`/api/audio/${id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ book }),

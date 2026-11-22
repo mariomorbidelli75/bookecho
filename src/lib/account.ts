@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabase'
 import { syncLibrary } from '@/lib/cloud-books'
+import { LEGAL_VERSION } from '@/lib/legal'
 import type { Book } from '@/types'
 import type { Friend } from '@/lib/social'
 
@@ -59,7 +60,12 @@ export async function signUp(name: string, email: string, password: string, invi
     email: email.trim(),
     password,
     options: {
-      data: { name: name.trim(), invite: invite?.toUpperCase() ?? '' },
+      data: {
+        name: name.trim(),
+        invite: invite?.toUpperCase() ?? '',
+        // Prova del consenso: quando e a quale versione dei documenti
+        consent: { at: new Date().toISOString(), privacy: LEGAL_VERSION, terms: LEGAL_VERSION, age14: true },
+      },
       emailRedirectTo: typeof window !== 'undefined' ? `${window.location.origin}/app/friends` : undefined,
     },
   })
@@ -87,6 +93,46 @@ export async function signOut() {
 export async function logout() {
   try { await syncLibrary() } catch {}
   await signOut()
+  for (const k of [
+    'bookecho_books', 'bookecho_deleted', 'bookecho_owner',
+    'libro_friends', 'libro_sharing', 'libro_refcode', 'libro_username', 'libro_avatar', PENDING_INVITE_KEY,
+  ]) {
+    try { localStorage.removeItem(k) } catch {}
+  }
+}
+
+// ── Diritti GDPR ────────────────────────────────────────────────────────────
+// Copia di tutti i miei dati (art. 15 e 20): profilo, amici, libri, club.
+export async function exportMyData(): Promise<Blob> {
+  const sb = need()
+  const { data: s } = await sb.auth.getSession()
+  const user = s.session?.user
+  if (!user) throw new Error('Accedi per scaricare i tuoi dati.')
+  const [profile, friends, books, clubs, memberships] = await Promise.all([
+    sb.from('profiles').select('*').single(),
+    sb.rpc('my_friends'),
+    sb.from('books').select('id, data, deleted, updated_at'),
+    sb.from('book_clubs').select('*').eq('creator_id', user.id),
+    sb.from('book_club_members').select('club_id, joined_at').eq('user_id', user.id),
+  ])
+  const dump = {
+    esportato_il: new Date().toISOString(),
+    account: { id: user.id, email: user.email, creato_il: user.created_at, consenso: user.user_metadata?.consent ?? null },
+    profilo: profile.data,
+    amici: (friends.data ?? []).map((f: { name: string; joined_at: string }) => ({ nome: f.name, collegati_dal: f.joined_at })),
+    libri: (books.data ?? []).filter((b: { deleted: boolean }) => !b.deleted).map((b: { data: unknown }) => b.data),
+    book_club_creati: clubs.data ?? [],
+    book_club_iscrizioni: memberships.data ?? [],
+  }
+  return new Blob([JSON.stringify(dump, null, 2)], { type: 'application/json' })
+}
+
+// Cancellazione definitiva dell'account e di tutti i dati collegati (art. 17)
+export async function deleteMyAccount(): Promise<void> {
+  const sb = need()
+  const { error } = await sb.rpc('delete_my_account')
+  if (error) throw error
+  await sb.auth.signOut().catch(() => {})
   for (const k of [
     'bookecho_books', 'bookecho_deleted', 'bookecho_owner',
     'libro_friends', 'libro_sharing', 'libro_refcode', 'libro_username', 'libro_avatar', PENDING_INVITE_KEY,

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireUser } from '@/lib/server-auth'
 import { generateAudioScript } from '@/lib/ai'
 import { generateAudio } from '@/lib/audio'
 import { fetchWikipedia } from '@/lib/books'
@@ -7,6 +8,9 @@ import type { Book } from '@/types'
 export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
+  const auth = await requireUser(req, 'audio')
+  if (auth instanceof NextResponse) return auth
+
   try {
     const { book } = await req.json() as { book: Book }
     if (!book?.title) return NextResponse.json({ error: 'Dati libro mancanti' }, { status: 400 })

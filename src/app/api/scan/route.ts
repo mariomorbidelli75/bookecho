@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireUser } from '@/lib/server-auth'
 import { identifyBookFromImage } from '@/lib/ai'
 import { enrichBook } from '@/lib/enrich'
 
@@ -6,6 +7,9 @@ import { enrichBook } from '@/lib/enrich'
 export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
+  const auth = await requireUser(req, 'scan')
+  if (auth instanceof NextResponse) return auth
+
   try {
     const body = await req.json()
     const { image } = body

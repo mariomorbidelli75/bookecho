@@ -6,6 +6,7 @@ import { TopBar } from '@/components/TopBar'
 import { MarketValueCard } from '@/components/MarketValueCard'
 import type { Book, MarketData } from '@/types'
 import { getBook, updateBook } from '@/lib/storage'
+import { apiFetch } from '@/lib/api'
 
 // Una valutazione vale 30 giorni: riaprire la pagina non costa nulla,
 // si ricerca solo quando l'utente chiede di aggiornare.
@@ -22,7 +23,7 @@ export default function MarketPage({ params }: { params: Promise<{ id: string }>
     setLoading(true)
     setFailed(false)
     try {
-      const r = await fetch(`/api/market/${b.id}`, {
+      const r = await apiFetch(`/api/market/${b.id}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ book: { ...b, locationPhoto: null, cover: b.cover?.startsWith('data:') ? null : b.cover } }),

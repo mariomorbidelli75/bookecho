@@ -43,6 +43,9 @@ export function AuthGate({ children }: { children: React.ReactNode }) {
             <h2 className="font-serif text-xl font-semibold mb-1">Benvenuto</h2>
             <p className="text-sm text-[var(--muted)] mb-4">Accedi con il tuo account o creane uno nuovo: ci vuole un minuto.</p>
             <AuthForm initialMode="login" onDone={({ needsConfirm }) => { if (needsConfirm) setConfirmSent(true) }} />
+            <p className="text-[11px] text-center text-[var(--muted)] mt-6">
+              <a href="/privacy" className="underline">Privacy</a> · <a href="/termini" className="underline">Termini d&apos;uso</a>
+            </p>
           </>
         )}
       </div>

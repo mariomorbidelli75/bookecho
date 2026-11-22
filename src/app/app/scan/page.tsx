@@ -8,6 +8,7 @@ import { ShelfReview, type ShelfResult } from '@/components/ShelfReview'
 import { cn, fileToBase64, compressDataUrl } from '@/lib/utils'
 import type { Book } from '@/types'
 import { createBook, findDuplicates, whereIs, bookHref } from '@/lib/storage'
+import { apiFetch } from '@/lib/api'
 
 // La risposta di /api/scan e /api/isbn porta anche la provenienza dei campi:
 // serve a dire all'utente da dove arrivano copertina e trama.
@@ -74,7 +75,7 @@ export default function ScanPage() {
       setDest('market')
     }
     // La scansione libreria richiede una chiave di visione lato server
-    fetch('/api/scan/shelf')
+    apiFetch('/api/scan/shelf')
       .then(r => r.json())
       .then(d => setShelfAvailable(Boolean(d.available)))
       .catch(() => setShelfAvailable(null))
@@ -97,7 +98,7 @@ export default function ScanPage() {
     setState('scanning')
     setError('')
     try {
-      const res = await fetch(`/api/isbn?isbn=${encodeURIComponent(isbn)}`)
+      const res = await apiFetch(`/api/isbn?isbn=${encodeURIComponent(isbn)}`)
       const data = await res.json()
       if (!res.ok || data.error) {
         setState('error')
@@ -156,7 +157,7 @@ export default function ScanPage() {
     setState('scanning')
     setError('')
     try {
-      const res = await fetch('/api/scan/shelf', {
+      const res = await apiFetch('/api/scan/shelf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image: base64 }),
@@ -200,7 +201,7 @@ export default function ScanPage() {
 
     // 2. Try AI scan (requires ANTHROPIC_API_KEY)
     try {
-      const res = await fetch('/api/scan', {
+      const res = await apiFetch('/api/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image: base64 }),

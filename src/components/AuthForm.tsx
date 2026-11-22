@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Loader2, Mail, Lock, User } from 'lucide-react'
 import { signUp, signIn, errorText } from '@/lib/account'
 import { isCloudReady } from '@/lib/supabase'
+import { MIN_AGE } from '@/lib/legal'
 
 interface AuthFormProps {
   invite?: string
@@ -18,6 +19,7 @@ export function AuthForm({ invite, initialMode = 'signup', onDone }: AuthFormPro
   const [password, setPassword] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [consent, setConsent] = useState(false)
 
   if (!isCloudReady) {
     return (
@@ -31,7 +33,9 @@ export function AuthForm({ invite, initialMode = 'signup', onDone }: AuthFormPro
     e.preventDefault()
     setError(null)
     if (mode === 'signup' && !name.trim()) return setError('Scrivi il tuo nome.')
-    if (password.length < 6) return setError('La password deve avere almeno 6 caratteri.')
+    if (mode === 'signup' && password.length < 8) return setError('Scegli una password di almeno 8 caratteri.')
+    if (mode === 'login' && password.length < 6) return setError('Password troppo corta.')
+    if (mode === 'signup' && !consent) return setError('Per registrarti devi accettare termini e privacy.')
     setBusy(true)
     try {
       if (mode === 'signup') onDone(await signUp(name, email, password, invite))
@@ -62,10 +66,22 @@ export function AuthForm({ invite, initialMode = 'signup', onDone }: AuthFormPro
       </label>
       <label className="relative block">
         <Lock size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--muted)]" />
-        <input className={field} style={fieldStyle} type="password" required placeholder="Password (min. 6 caratteri)"
+        <input className={field} style={fieldStyle} type="password" required placeholder={mode === 'signup' ? 'Password (almeno 8 caratteri)' : 'Password'}
           autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
           value={password} onChange={e => setPassword(e.target.value)} />
       </label>
+
+      {mode === 'signup' && (
+        <label className="flex items-start gap-2.5 text-xs leading-relaxed text-[var(--ink-2)] cursor-pointer">
+          <input type="checkbox" checked={consent} onChange={e => setConsent(e.target.checked)}
+            className="mt-0.5 w-4 h-4 flex-shrink-0 accent-[var(--forest)]" />
+          <span>
+            Ho almeno {MIN_AGE} anni e accetto i{' '}
+            <a href="/termini" target="_blank" className="underline font-semibold">Termini d&apos;uso</a> e
+            l&apos;<a href="/privacy" target="_blank" className="underline font-semibold">Informativa privacy</a>.
+          </span>
+        </label>
+      )}
 
       {error && <p className="text-xs font-medium" style={{ color: '#C8542A' }}>{error}</p>}
 

@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { Sparkles, Check, AlertCircle } from 'lucide-react'
 import type { Book } from '@/types'
 import { updateBook } from '@/lib/storage'
+import { apiFetch } from '@/lib/api'
 
 const FIELD_LABELS: Record<string, string> = {
   cover: 'copertina',
@@ -42,7 +43,7 @@ export function CompleteSheet({ book, onUpdated }: { book: Book; onUpdated: (b: 
     setState('loading')
     setMessage('')
     try {
-      const res = await fetch('/api/enrich', {
+      const res = await apiFetch('/api/enrich', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ title: book.title, author: book.author, isbn: book.isbn }),

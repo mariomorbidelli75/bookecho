@@ -99,3 +99,11 @@ body {
   animation: shimmer 1.5s infinite;
   border-radius: 8px;
 }
+
+/* ── Pagine legali (privacy, termini) ─────────────────────────────────────── */
+.legal { color: var(--ink); line-height: 1.65; font-size: 15px; }
+.legal h2 { font-family: var(--font-fraunces, Georgia, serif); font-size: 1.2rem; font-weight: 600; margin: 1.8rem 0 0.6rem; }
+.legal p { margin: 0 0 0.9rem; }
+.legal ul { list-style: disc; padding-left: 1.3rem; margin: 0 0 0.9rem; }
+.legal li { margin-bottom: 0.4rem; }
+.legal a { color: var(--forest); text-decoration: underline; text-underline-offset: 2px; }

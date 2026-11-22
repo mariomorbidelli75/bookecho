@@ -4,6 +4,7 @@ import Image from 'next/image'
 import { BookOpen, ShoppingBag, ExternalLink, ChevronDown } from 'lucide-react'
 import type { AuthorBook } from '@/lib/books'
 import { buyLinks } from '@/lib/marketplaces'
+import { apiFetch } from '@/lib/api'
 
 interface AuthorBooksProps {
   author: string
@@ -28,7 +29,7 @@ export function AuthorBooks({ author, excludeTitle }: AuthorBooksProps) {
     }
     let active = true
     const params = new URLSearchParams({ name: author, exclude: excludeTitle })
-    fetch(`/api/author?${params}`)
+    apiFetch(`/api/author?${params}`)
       .then(r => r.json())
       .then((data: AuthorBook[]) => { if (active) setBooks(data) })
       .catch(() => {})

@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
-import { BookOpen, Star, TrendingUp, Zap, ChevronRight, Gift, Users, Camera, Check, Pencil, LogOut, MessagesSquare } from 'lucide-react'
+import { BookOpen, Star, TrendingUp, Zap, ChevronRight, Gift, Users, Camera, Check, Pencil, LogOut, MessagesSquare, Download, ShieldCheck, Trash2 } from 'lucide-react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { TopBar } from '@/components/TopBar'
@@ -8,7 +8,7 @@ import type { Book } from '@/types'
 import { formatPrice, compressImageSquare } from '@/lib/utils'
 import { getLibraryBooks } from '@/lib/storage'
 import { getMyName, setMyName, getMyAvatar, setMyAvatar } from '@/lib/social'
-import { fetchFriends, currentAccount, getMyProfile, updateMyProfile, logout } from '@/lib/account'
+import { fetchFriends, currentAccount, getMyProfile, updateMyProfile, logout, exportMyData, deleteMyAccount } from '@/lib/account'
 
 export default function ProfilePage() {
   const [books, setBooks] = useState<Book[]>([])
@@ -44,6 +44,33 @@ export default function ProfilePage() {
     setName(n)
     setEditingName(false)
     updateMyProfile({ name: n }).catch(() => {})
+  }
+
+  const downloadData = async () => {
+    try {
+      const blob = await exportMyData()
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `libro-i-miei-dati-${new Date().toISOString().slice(0, 10)}.json`
+      a.click()
+      URL.revokeObjectURL(a.href)
+    } catch (e) {
+      alert(e instanceof Error ? e.message : 'Download non riuscito, riprova.')
+    }
+  }
+
+  const removeAccount = async () => {
+    const typed = prompt('Eliminare l\'account cancella per sempre libreria, amici, book club creati e iscrizioni.\n\nPer confermare scrivi ELIMINA')
+    if (typed?.trim().toUpperCase() !== 'ELIMINA') return
+    setLeaving(true)
+    try {
+      await deleteMyAccount()
+      alert('Account eliminato. Tutti i tuoi dati sono stati cancellati.')
+      window.location.href = '/app'
+    } catch {
+      setLeaving(false)
+      alert('Eliminazione non riuscita. Riprova o scrivi a chi gestisce Librò.')
+    }
   }
 
   const doLogout = async () => {
@@ -163,6 +190,21 @@ export default function ProfilePage() {
             </div>
           ))}
         </div>
+
+        {online && (
+          <div className="rounded-2xl overflow-hidden border border-[var(--line)] bg-white">
+            <p className="px-4 pt-3.5 pb-1 text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Privacy e dati</p>
+            <a href="/privacy" target="_blank" className="flex items-center gap-3 px-4 py-3 text-sm border-b border-[var(--line)]">
+              <ShieldCheck size={17} className="text-[var(--forest)]" /> <span className="flex-1">Informativa privacy e termini</span> <ChevronRight size={16} className="text-[var(--muted)]" />
+            </a>
+            <button onClick={downloadData} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-left border-b border-[var(--line)]">
+              <Download size={17} className="text-[var(--forest)]" /> <span className="flex-1">Scarica i miei dati</span>
+            </button>
+            <button onClick={removeAccount} disabled={leaving} className="w-full flex items-center gap-3 px-4 py-3 text-sm text-left disabled:opacity-60" style={{ color: '#C8542A' }}>
+              <Trash2 size={17} /> <span className="flex-1">Elimina account e tutti i dati</span>
+            </button>
+          </div>
+        )}
 
         {online && (
           <button onClick={doLogout} disabled={leaving}

@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireUser } from '@/lib/server-auth'
 import { enrichBook } from '@/lib/enrich'
 
 export async function GET(req: NextRequest) {
+  const auth = await requireUser(req)
+  if (auth instanceof NextResponse) return auth
+
   const isbn = req.nextUrl.searchParams.get('isbn')
   if (!isbn) return NextResponse.json({ error: 'ISBN mancante' }, { status: 400 })
 

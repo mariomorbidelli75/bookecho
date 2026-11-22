@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireUser } from '@/lib/server-auth'
 import { enrichBook } from '@/lib/enrich'
 
 // Completa una scheda già salvata: si interrogano di nuovo tutte le fonti
@@ -7,6 +8,9 @@ import { enrichBook } from '@/lib/enrich'
 export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
+  const auth = await requireUser(req, 'enrich')
+  if (auth instanceof NextResponse) return auth
+
   try {
     const { title, author, isbn } = await req.json() as {
       title?: string; author?: string; isbn?: string | null

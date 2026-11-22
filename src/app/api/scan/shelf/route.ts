@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireUser } from '@/lib/server-auth'
 import { identifyBooksFromShelfImage, type SpineBook } from '@/lib/ai'
 import { enrichBook } from '@/lib/enrich'
 
@@ -26,6 +27,9 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  const auth = await requireUser(req, 'shelf')
+  if (auth instanceof NextResponse) return auth
+
   try {
     const { image } = await req.json()
     if (!image) return NextResponse.json({ error: 'Nessuna immagine ricevuta' }, { status: 400 })

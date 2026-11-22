@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireUser } from '@/lib/server-auth'
 import { searchByAuthor } from '@/lib/books'
 
 export async function GET(req: NextRequest) {
+  const auth = await requireUser(req)
+  if (auth instanceof NextResponse) return auth
+
   const name = req.nextUrl.searchParams.get('name')?.trim()
   const exclude = req.nextUrl.searchParams.get('exclude')?.trim() ?? ''
   if (!name) return NextResponse.json([], { status: 200 })
