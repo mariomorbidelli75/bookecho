@@ -70,9 +70,11 @@ async function coverPrice(book: Book): Promise<number | null> {
 }
 
 // ── 2. Annunci reali tramite ricerca web ────────────────────────────────────
-interface FoundListing { platform?: string; price?: number; condition?: string; url?: string }
+interface FoundListing { platform?: string; price?: number; condition?: string; url?: string; rare?: boolean }
 
-async function webListings(book: Book): Promise<{ listings: MarketSource[]; note?: string } | null> {
+type Listing = MarketSource & { rare?: boolean }
+
+async function webListings(book: Book): Promise<{ listings: Listing[]; note?: string } | null> {
   if (!client) return null
   const desc = [
     `"${book.title}"`,
@@ -90,29 +92,29 @@ async function webListings(book: Book): Promise<{ listings: MarketSource[]; note
       tools: [{
         type: 'web_search_20250305',
         name: 'web_search',
-        max_uses: 3,
+        max_uses: 2,
         allowed_domains: Object.keys(PORTALS),
         user_location: { type: 'approximate', country: 'IT' },
       }],
       messages: [{
         role: 'user',
         content: `Trova i prezzi attuali del libro ${desc} su portali italiani di libri usati e da collezione (eBay, Vinted, Subito, AbeBooks, Maremagnum, Comprovendolibri, Libraccio, Catawiki; Amazon/IBS solo come prezzo del nuovo).
-Fai al massimo 3 ricerche. Considera SOLO annunci di questo libro (stesso titolo e autore), non altri libri.
+Fai al massimo 2 ricerche. Considera SOLO annunci di questo libro (stesso titolo e autore), non altri libri.
+Segna "rare": true per prime edizioni, copie autografate o da collezione; false per le edizioni comuni (tascabili, ristampe, edizioni recenti).
 Rispondi alla fine SOLO con JSON valido, senza testo attorno:
-{"listings":[{"platform":"eBay","price":12.5,"condition":"Usato - buono","url":"https://..."}],"note":"una frase su edizione/rarità se rilevante"}
+{"listings":[{"platform":"eBay","price":12.5,"condition":"Usato - buono","url":"https://...","rare":false}],"note":"una frase su edizione/rarità se rilevante"}
 Prezzi in euro, numero senza simbolo. Se non trovi annunci: {"listings":[]}.`,
       }],
     })
 
     const text = response.content.filter(b => b.type === 'text').map(b => (b as Anthropic.TextBlock).text).join('')
-    const searches = response.content.filter(b => b.type === 'server_tool_use').length
-    console.log('valuation', JSON.stringify({ title: book.title, searches, stop: response.stop_reason, usage: response.usage, blocks: response.content.map(b => b.type), text: text.slice(-1200) }))
+
     const match = text.match(/\{[\s\S]*\}\s*$/) ?? text.match(/\{[\s\S]*\}/)
     if (!match) return { listings: [] }
     const raw = JSON.parse(match[0]) as { listings?: FoundListing[]; note?: string }
 
     // Teniamo solo annunci credibili: prezzo sensato e link a un portale noto
-    const listings: MarketSource[] = []
+    const listings: Listing[] = []
     const seen = new Set<string>()
     for (const l of raw.listings ?? []) {
       const price = Number(l.price)
@@ -120,7 +122,8 @@ Prezzi in euro, numero senza simbolo. Se non trovi annunci: {"listings":[]}.`,
       const platform = platformOf(l.url)
       if (!platform || seen.has(l.url)) continue
       seen.add(l.url)
-      listings.push({ platform, price: Math.round(price * 100) / 100, url: l.url, condition: l.condition?.slice(0, 40) || undefined })
+      const condition = [l.rare ? 'Edizione da collezione' : null, l.condition?.slice(0, 40)].filter(Boolean).join(' · ') || undefined
+      listings.push({ platform, price: Math.round(price * 100) / 100, url: l.url, condition, rare: Boolean(l.rare) })
     }
     return { listings: listings.slice(0, 8), note: raw.note?.slice(0, 200) || undefined }
   } catch (e) {
@@ -147,8 +150,12 @@ function median(values: number[]): number {
 export async function valueBook(book: Book): Promise<MarketData> {
   const [newPrice, web] = await Promise.all([coverPrice(book), webListings(book)])
 
-  // Il prezzo del nuovo (Amazon/IBS) è un riferimento, non un valore dell'usato
-  const used = (web?.listings ?? []).filter(l => l.platform !== 'Amazon' && l.platform !== 'IBS')
+  // Il prezzo del nuovo (Amazon/IBS) è un riferimento, non un valore dell'usato.
+  // Le prime edizioni valgono molto di più: contano solo se il libro è una di quelle.
+  const usedAll = (web?.listings ?? []).filter(l => l.platform !== 'Amazon' && l.platform !== 'IBS')
+  const mineIsRare = /prima|1[ªa°]\s*ed|first|autograf/i.test(`${book.edition ?? ''} ${book.notes ?? ''}`)
+  const common = usedAll.filter(l => !l.rare)
+  const used = mineIsRare ? usedAll : common
   const links = searchLinks(book).filter(s => !(web?.listings ?? []).some(l => l.platform === s.platform))
 
   if (used.length > 0) {
@@ -163,7 +170,7 @@ export async function valueBook(book: Book): Promise<MarketData> {
       found: used.length,
       newPrice,
       note: web?.note,
-      sources: [...(web?.listings ?? []), ...links],
+      sources: [...(web?.listings ?? []).map(({ rare: _rare, ...l }) => l), ...links],
     }
   }
 
@@ -176,6 +183,6 @@ export async function valueBook(book: Book): Promise<MarketData> {
     found: 0,
     newPrice,
     note: web?.note,
-    sources: [...(web?.listings ?? []), ...searchLinks(book)],
+    sources: [...(web?.listings ?? []).map(({ rare: _rare, ...l }) => l), ...searchLinks(book)],
   }
 }
