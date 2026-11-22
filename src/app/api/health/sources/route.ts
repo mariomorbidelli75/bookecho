@@ -82,7 +82,7 @@ export async function GET() {
     // Si prova proprio la sintesi vocale, non il profilo utente: le chiavi
     // ElevenLabs sono a permessi separati e una chiave può benissimo saper
     // parlare senza poter leggere l'anagrafica dell'account.
-    probe('ElevenLabs (voce)', Boolean(process.env.ELEVENLABS_API_KEY), async () => {
+    probe('ElevenLabs (voce)', process.env.USE_ELEVENLABS === 'true' && Boolean(process.env.ELEVENLABS_API_KEY), async () => {
       const voiceId = process.env.ELEVENLABS_VOICE_ID ?? '21m00Tcm4TlvDq8ikWAM'
       const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
         method: 'POST',

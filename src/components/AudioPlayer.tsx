@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Play, Pause, RotateCcw, RotateCw, Volume2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { speak, stopSpeaking } from '@/lib/speech'
 
 interface AudioPlayerProps {
   audioUrl?: string
@@ -47,21 +48,27 @@ export function AudioPlayer({ audioUrl, script, bookTitle, onGenerate, generatin
     setPlaying(true)
   }, [audioUrl])
 
-  // Browser TTS fallback (used when ElevenLabs is unavailable or times out)
+  // Voce del telefono (gratis)
   const speakWithBrowser = () => {
-    if (!script || typeof window === 'undefined' || !window.speechSynthesis) return
-    window.speechSynthesis.cancel()
-    const u = new SpeechSynthesisUtterance(script)
-    u.lang = 'it-IT'
-    u.rate = 0.88
-    u.pitch = 1
-    u.onstart = () => setPlaying(true)
-    u.onend = () => { setPlaying(false); setProgress(0) }
-    u.onboundary = (e) => {
-      if (u.text.length > 0) setProgress(e.charIndex / u.text.length)
-    }
-    window.speechSynthesis.speak(u)
+    if (!script) return
+    speak(script, {
+      onStart: () => setPlaying(true),
+      onEnd: () => { setPlaying(false); setProgress(0) },
+      onProgress: setProgress,
+    })
   }
+
+  // Ferma la voce se si esce dalla pagina
+  useEffect(() => () => stopSpeaking(), [])
+
+  // Appena il testo è pronto (dopo il tocco su Play) parte da solo
+  const wantPlay = useRef(false)
+  useEffect(() => {
+    if (!script || audioUrl || !wantPlay.current) return
+    wantPlay.current = false
+    speakWithBrowser()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [script])
 
   const toggle = () => {
     // Real audio file available
@@ -74,12 +81,12 @@ export function AudioPlayer({ audioUrl, script, bookTitle, onGenerate, generatin
     if (generating) return
     // Script already ready — play/pause browser TTS (do NOT re-generate)
     if (script) {
-      if (playing) { window.speechSynthesis?.cancel(); setPlaying(false) }
+      if (playing) { stopSpeaking(); setPlaying(false) }
       else speakWithBrowser()
       return
     }
     // Nothing yet — trigger generation
-    if (onGenerate) onGenerate()
+    if (onGenerate) { wantPlay.current = true; onGenerate() }
   }
 
   const skip = (secs: number) => {
@@ -106,7 +113,7 @@ export function AudioPlayer({ audioUrl, script, bookTitle, onGenerate, generatin
             <Volume2 size={18} style={{ color: 'var(--accent-amber)' }} />
           </div>
           <div>
-            <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--accent-amber)' }}>Trailer Audio AI</p>
+            <p className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--accent-amber)' }}>Trailer audio</p>
             <p className="text-sm font-semibold">{bookTitle ?? 'Trailer'}</p>
           </div>
         </div>

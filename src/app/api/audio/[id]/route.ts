@@ -24,7 +24,9 @@ export async function POST(req: NextRequest) {
 
     const script = await generateAudioScript(enrichedBook)
 
-    if (process.env.ELEVENLABS_API_KEY) {
+    // Voce ElevenLabs (a pagamento) solo se attivata esplicitamente:
+    // di base l'app usa la voce del telefono, che è gratis.
+    if (process.env.USE_ELEVENLABS === 'true' && process.env.ELEVENLABS_API_KEY) {
       const audioBuffer = await generateAudio(script)
       if (audioBuffer) {
         return new NextResponse(audioBuffer.buffer as ArrayBuffer, {

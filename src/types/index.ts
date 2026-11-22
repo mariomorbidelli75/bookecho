@@ -25,6 +25,8 @@ export interface Book {
   pages?: number | null
   genre?: string | null
   audioUrl?: string | null
+  // Testo del trailer audio già generato: si riusa senza richiamare l'AI
+  audioScript?: string | null
   marketData?: MarketData | null
   readingStartedAt?: string | null
   readingFinishedAt?: string | null
@@ -69,6 +71,13 @@ export interface MarketData {
   currency: string
   lastUpdated: string
   sources: MarketSource[]
+  /** 'annunci' = prezzi letti da annunci reali; 'stima' = stima indicativa per età */
+  method?: 'annunci' | 'stima'
+  /** Quanti annunci reali dell'usato sono stati trovati */
+  found?: number
+  /** Prezzo di copertina del nuovo (Google Books), se disponibile */
+  newPrice?: number | null
+  note?: string
 }
 
 export interface MarketSource {

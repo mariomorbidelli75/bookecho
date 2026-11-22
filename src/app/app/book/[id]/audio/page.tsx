@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { use } from 'react'
 import { TopBar } from '@/components/TopBar'
 import { AudioPlayer } from '@/components/AudioPlayer'
@@ -12,31 +12,20 @@ export default function AudioPage({ params }: { params: Promise<{ id: string }> 
   const [audioData, setAudioData] = useState<{ script?: string; url?: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [generating, setGenerating] = useState(false)
-  const autoSpeakRef = useRef(false)
 
   useEffect(() => {
     const data = getBook(id)
-    if (data) setBook(data)
+    if (data) {
+      setBook(data)
+      // Testo già generato in passato: si riusa, senza richiamare l'AI
+      if (data.audioScript) setAudioData({ script: data.audioScript })
+    }
     setLoading(false)
   }, [id])
-
-  useEffect(() => {
-    if (!autoSpeakRef.current) return
-    if (audioData?.url) return
-    if (!audioData?.script) return
-    autoSpeakRef.current = false
-    if (typeof window === 'undefined' || !window.speechSynthesis) return
-    window.speechSynthesis.cancel()
-    const u = new SpeechSynthesisUtterance(audioData.script)
-    u.lang = 'it-IT'
-    u.rate = 0.88
-    window.speechSynthesis.speak(u)
-  }, [audioData])
 
   const generate = async () => {
     if (generating || !book) return
     setGenerating(true)
-    autoSpeakRef.current = true
     try {
       const r = await fetch(`/api/audio/${id}`, {
         method: 'POST',
@@ -49,11 +38,9 @@ export default function AudioPage({ params }: { params: Promise<{ id: string }> 
       } else {
         const json = await r.json()
         setAudioData(json)
-        // Cache the Wikipedia summary fetched server-side so it shows next time
-        if (json.summary && book) {
-          updateBook(id, { summary: json.summary })
-          setBook(prev => prev ? { ...prev, summary: json.summary } : prev)
-        }
+        // Salva testo del trailer e trama trovata, così la prossima volta è gratis
+        if (json.script) updateBook(id, { audioScript: json.script, ...(json.summary ? { summary: json.summary } : {}) })
+        if (json.summary) setBook(prev => prev ? { ...prev, summary: json.summary } : prev)
       }
     } catch {
       if (book) {

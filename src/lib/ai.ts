@@ -2,7 +2,9 @@ import Anthropic from '@anthropic-ai/sdk'
 import type { Book, SellListing, Suggestion } from '@/types'
 import { searchGoogleBooks, mapGoogleBook } from './books'
 
-const MODEL = 'claude-opus-5'
+// Haiku: il modello più economico di Anthropic, sufficiente per copertine,
+// dorsi, trame, annunci e suggerimenti.
+const MODEL = 'claude-haiku-5-5'
 
 const client = process.env.ANTHROPIC_API_KEY
   ? new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
@@ -67,7 +69,6 @@ export async function identifyBooksFromShelfImage(base64Image: string): Promise<
     const response = await client.messages.create({
       model: MODEL,
       max_tokens: 4096,
-      thinking: { type: 'adaptive' },
       messages: [{
         role: 'user',
         content: [
