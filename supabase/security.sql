@@ -44,3 +44,17 @@ revoke all on function public.delete_my_account() from public, anon;
 grant execute on function public.delete_my_account() to authenticated;
 
 -- I libri sono collegati a auth.users: anche loro spariscono con l'account.
+
+-- ── Permessi minimi sulle funzioni (Security Advisor) ───────────────────────
+-- Funzioni dei trigger: nessuno deve poterle chiamare direttamente
+revoke execute on function public.handle_new_user()    from public, anon, authenticated;
+revoke execute on function public.club_creator_joins() from public, anon, authenticated;
+-- Solo per chi ha fatto l'accesso
+revoke execute on function public.accept_invite(text)  from public, anon;
+revoke execute on function public.list_book_clubs()    from public, anon;
+revoke execute on function public.my_friends()         from public, anon;
+grant  execute on function public.accept_invite(text)  to authenticated;
+grant  execute on function public.list_book_clubs()    to authenticated;
+grant  execute on function public.my_friends()         to authenticated;
+-- inviter_name resta pubblica di proposito: la pagina d'invito mostra
+-- "Mario ti invita" a chi non è ancora registrato (restituisce solo il nome).
